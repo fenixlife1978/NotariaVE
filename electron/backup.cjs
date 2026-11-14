@@ -73,8 +73,12 @@ async function createVerifiedBackup(sourceDb, destinationPath, DatabaseCtor = Da
       fs.renameSync(temporaryPath, destinationPath);
       installedDatabase = true;
       fs.renameSync(temporaryManifest, manifestPath);
-      if (movedPreviousDatabase && fs.existsSync(displacedDatabase)) fs.unlinkSync(displacedDatabase);
-      if (movedPreviousManifest && fs.existsSync(displacedManifest)) fs.unlinkSync(displacedManifest);
+      if (movedPreviousDatabase && fs.existsSync(displacedDatabase)) {
+        try { fs.unlinkSync(displacedDatabase); } catch (cleanupError) { console.error('No se pudo retirar el respaldo anterior:', cleanupError); }
+      }
+      if (movedPreviousManifest && fs.existsSync(displacedManifest)) {
+        try { fs.unlinkSync(displacedManifest); } catch (cleanupError) { console.error('No se pudo retirar el manifiesto anterior:', cleanupError); }
+      }
       return { filePath: destinationPath, fileName: path.basename(destinationPath), manifestPath, ...manifest };
     } catch (installError) {
       if (installedDatabase && fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
