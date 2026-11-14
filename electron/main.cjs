@@ -28,6 +28,12 @@ function requireSession() {
   return user;
 }
 
+function requireAdmin() {
+  const user = requireSession();
+  if (user.role !== 'admin') throw new Error('Esta operación está reservada al administrador local.');
+  return user;
+}
+
 function writeAudit(actorId, action, entityType, entityId, details = {}) {
   db.prepare(`
     INSERT INTO audit_log(actor_user_id, action, entity_type, entity_id, details_json, created_at)
@@ -82,6 +88,7 @@ function registerIpc() {
   ipcMain.handle('auth:logout', () => {
     if (activeSession) writeAudit(activeSession.userId, 'logout', 'user', activeSession.userId);
     activeSession = null;
+    pendingLegacyImport = null;
     return { success: true };
   });
 
@@ -168,7 +175,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('backup:create', async () => {
-    const actor = requireSession();
+    const actor = requireAdmin();
     const suggestedName = `NotariaVE-respaldo-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`;
     const selection = await dialog.showSaveDialog(mainWindow, {
       title: 'Guardar respaldo SQLite de NotariaVE',
@@ -189,7 +196,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('backup:restore', async () => {
-    const actor = requireSession();
+    const actor = requireAdmin();
     const selection = await dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar respaldo verificado de NotariaVE',
       buttonLabel: 'Verificar y restaurar',
@@ -268,7 +275,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('legacy:select', async () => {
-    requireSession();
+    requireAdmin();
     const selection = await dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar exportación de NotariaVE anterior',
       buttonLabel: 'Revisar datos',
@@ -302,7 +309,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('legacy:import', (_event, input = {}) => {
-    const actor = requireSession();
+    const actor = requireAdmin();
     const token = String(input.token || '');
     if (!pendingLegacyImport || !token || token !== pendingLegacyImport.token) {
       throw new Error('La revisión de importación expiró. Seleccione nuevamente el archivo.');
