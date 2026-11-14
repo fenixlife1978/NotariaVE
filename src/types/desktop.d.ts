@@ -8,7 +8,7 @@ declare global {
       login(input: { username: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       logout(): Promise<{ success: boolean }>;
       listClients(): Promise<Array<Record<string, unknown>>>;
-      saveClient(client: Record<string, unknown>): Promise<Record<string, unknown>>;
+      saveClient(client: object): Promise<Record<string, unknown>>;
       deleteClient(id: string): Promise<{ deleted: boolean }>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
