@@ -5,7 +5,6 @@ const { openDatabase } = require('./database.cjs');
 
 let mainWindow;
 let db;
-let dbPath;
 let activeSession = null;
 
 const now = () => new Date().toISOString();
@@ -171,7 +170,6 @@ function createWindow() {
 app.whenReady().then(() => {
   const opened = openDatabase(app.getPath('userData'));
   db = opened.db;
-  dbPath = opened.dbPath;
   registerIpc();
   createWindow();
   app.on('activate', () => {
