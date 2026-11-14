@@ -311,6 +311,7 @@ function registerIpc() {
   ipcMain.handle('legacy:import', (_event, input = {}) => {
     const actor = requireAdmin();
     const token = String(input.token || '');
+    const includeDemoRecords = input.includeDemoRecords === true;
     if (!pendingLegacyImport || !token || token !== pendingLegacyImport.token) {
       throw new Error('La revisión de importación expiró. Seleccione nuevamente el archivo.');
     }
@@ -332,7 +333,7 @@ function registerIpc() {
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
       for (const client of pending.data.clients) {
-        if (isSeedDemoClient(client)) {
+        if (isSeedDemoClient(client) && !includeDemoRecords) {
           skippedDemoClients += 1;
           continue;
         }
@@ -354,7 +355,7 @@ function registerIpc() {
       let lawyerImported = false;
       let lawyerSkippedDemo = false;
       if (pending.data.lawyer) {
-        if (isSeedDemoLawyer(pending.data.lawyer)) lawyerSkippedDemo = true;
+        if (isSeedDemoLawyer(pending.data.lawyer) && !includeDemoRecords) lawyerSkippedDemo = true;
         else {
           db.prepare(`
             INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('lawyer_profile', ?, ?)
@@ -367,7 +368,7 @@ function registerIpc() {
       let criteriaImported = false;
       let criteriaSkippedDemo = false;
       if (pending.data.criteria) {
-        if (isSeedDemoCriteria(pending.data.criteria)) criteriaSkippedDemo = true;
+        if (isSeedDemoCriteria(pending.data.criteria) && !includeDemoRecords) criteriaSkippedDemo = true;
         else {
           db.prepare(`
             INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('saren_criteria', ?, ?)
@@ -377,7 +378,7 @@ function registerIpc() {
         }
       }
 
-      const summary = { fileName: pending.fileName, importedClients, skippedDuplicates, skippedDemoClients, lawyerImported, lawyerSkippedDemo, criteriaImported, criteriaSkippedDemo };
+      const summary = { fileName: pending.fileName, importedClients, skippedDuplicates, skippedDemoClients, lawyerImported, lawyerSkippedDemo, criteriaImported, criteriaSkippedDemo, includeDemoRecords };
       writeAudit(actor.id, 'legacy_data_imported', 'database', null, summary);
       return summary;
     });
