@@ -12,6 +12,8 @@ declare global {
       deleteClient(id: string): Promise<{ deleted: boolean }>;
       listDocuments(): Promise<Array<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: Record<string, any> }>>;
       saveDocument(input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }): Promise<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: Record<string, any> }>;
+      createBackup(): Promise<{ canceled: boolean; fileName?: string; sha256?: string; createdAt?: string; counts?: Record<string, number> }>;
+      restoreBackup(): Promise<{ canceled: boolean; restored?: boolean; fileName?: string; safetyBackup?: string; counts?: Record<string, number> }>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
     };
