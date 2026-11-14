@@ -210,6 +210,8 @@ export default function App() {
             onAddClient={handleAddClient}
             onUpdateClient={handleUpdateClient}
             onDeleteClient={handleDeleteClient}
+            canEdit={currentUser.role !== 'consulta'}
+            canDelete={['admin', 'abogado'].includes(currentUser.role)}
             onSelectForDocument={handleSelectClientForDocument}
           />
         )}
