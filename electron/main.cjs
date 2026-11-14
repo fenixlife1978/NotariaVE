@@ -321,13 +321,11 @@ function registerIpc() {
       let importedClients = 0;
       let skippedDuplicates = 0;
       let skippedDemoClients = 0;
-      const findDuplicate = db.prepare(`
-        SELECT id FROM clients
-        WHERE id = ?
-          OR (? <> '' AND id_card_number = ?)
-          OR (? <> '' AND rif_number = ?)
-        LIMIT 1
-      `);
+      const normalizeIdentity = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const existingRows = db.prepare('SELECT id, id_card_number, rif_number FROM clients').all();
+      const existingIds = new Set(existingRows.map((row) => row.id));
+      const existingCards = new Set(existingRows.map((row) => normalizeIdentity(row.id_card_number)).filter(Boolean));
+      const existingRifs = new Set(existingRows.map((row) => normalizeIdentity(row.rif_number)).filter(Boolean));
       const insertClient = db.prepare(`
         INSERT INTO clients(id, full_name, id_card_number, rif_number, data_json, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -342,13 +340,18 @@ function registerIpc() {
         const id = suppliedId.length > 0 && suppliedId.length <= 80 ? suppliedId : randomUUID();
         const idCardNumber = String(client.idCardNumber || '').trim();
         const rifNumber = String(client.rifNumber || '').trim();
-        if (findDuplicate.get(id, idCardNumber, idCardNumber, rifNumber, rifNumber)) {
+        const normalizedCard = normalizeIdentity(idCardNumber);
+        const normalizedRif = normalizeIdentity(rifNumber);
+        if (existingIds.has(id) || (normalizedCard && existingCards.has(normalizedCard)) || (normalizedRif && existingRifs.has(normalizedRif))) {
           skippedDuplicates += 1;
           continue;
         }
         const saved = { ...client, id, fullName };
         const timestamp = now();
         insertClient.run(id, fullName, idCardNumber, rifNumber, JSON.stringify(saved), timestamp, timestamp);
+        existingIds.add(id);
+        if (normalizedCard) existingCards.add(normalizedCard);
+        if (normalizedRif) existingRifs.add(normalizedRif);
         importedClients += 1;
       }
 
