@@ -6,6 +6,7 @@ const path = require('node:path');
 const { openDatabase } = require('../electron/database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('../electron/backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('../electron/legacy-import.cjs');
+const { TRIAL_DURATION_MS, getLicenseStatus, saveLicenseActivation } = require('../electron/licensing.cjs');
 
 function withTempDatabase(run) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-sqlite-'));
@@ -244,4 +245,54 @@ test('persists audit events and actor references across database reopen', () => 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('starts a 120-hour trial once and expires it without resetting the clock', () => {
+  withTempDatabase((db) => {
+    const start = Date.parse('2026-11-14T12:00:00.000Z');
+    const initial = getLicenseStatus(db, start);
+    assert.equal(initial.state, 'trial');
+    assert.equal(initial.allowed, true);
+    assert.equal(initial.trialDurationHours, 120);
+    assert.equal(initial.remainingMs, TRIAL_DURATION_MS);
+    const during = getLicenseStatus(db, start + 48 * 60 * 60 * 1000);
+    assert.equal(during.state, 'trial');
+    assert.equal(during.remainingHours, 72);
+    const expired = getLicenseStatus(db, start + TRIAL_DURATION_MS);
+    assert.equal(expired.state, 'expired');
+    assert.equal(expired.allowed, false);
+    const after = getLicenseStatus(db, start + TRIAL_DURATION_MS + 24 * 60 * 60 * 1000);
+    assert.equal(after.state, 'expired');
+    assert.equal(after.trialStartedAt, initial.trialStartedAt);
+  });
+});
+
+test('does not extend the free trial when the local clock is moved backwards', () => {
+  withTempDatabase((db) => {
+    const start = Date.parse('2026-11-14T12:00:00.000Z');
+    getLicenseStatus(db, start);
+    getLicenseStatus(db, start + 72 * 60 * 60 * 1000);
+    const rollback = getLicenseStatus(db, start + 60 * 60 * 1000);
+    assert.equal(rollback.state, 'expired');
+    assert.equal(rollback.allowed, false);
+    assert.match(rollback.message, /cambio hacia atrás/);
+  });
+});
+
+test('accepts an activated license offline only within CRM offline grace period', () => {
+  withTempDatabase((db) => {
+    const activatedAt = Date.parse('2026-11-14T12:00:00.000Z');
+    saveLicenseActivation(db, {
+      licenseId: 'license-1',
+      activationId: 'activation-1',
+      licenseName: 'NotariaVE Profesional',
+      offlineDays: 7,
+    }, activatedAt);
+    const valid = getLicenseStatus(db, activatedAt + 6 * 24 * 60 * 60 * 1000);
+    assert.equal(valid.state, 'active');
+    assert.equal(valid.allowed, true);
+    const expiredOffline = getLicenseStatus(db, activatedAt + 8 * 24 * 60 * 60 * 1000);
+    assert.equal(expiredOffline.state, 'revalidation_required');
+    assert.equal(expiredOffline.allowed, false);
+  });
 });
