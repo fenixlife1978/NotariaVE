@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { LoginPage } from './components/LoginPage';
+import { SetupAdminPage } from './components/SetupAdminPage';
 import { Header } from './components/Header';
 import { DocumentEditor } from './components/DocumentEditor';
 import { FeeCalculatorView } from './components/FeeCalculatorView';
@@ -18,17 +19,17 @@ import {
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(() => {
-    const saved = localStorage.getItem('mvp_notaria_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(null);
+  const [needsInitialAdmin, setNeedsInitialAdmin] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [desktopError, setDesktopError] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.notariaDesktop.getStatus()
+      .then((status) => setNeedsInitialAdmin(status.needsInitialAdmin))
+      .catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudo abrir la base de datos local.'))
+      .finally(() => setIsCheckingAuth(false));
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings'>('editor');
 
@@ -145,18 +146,22 @@ export default function App() {
 
   const handleLogin = (user: { username: string; role: string; fullName: string }) => {
     setCurrentUser(user);
-    localStorage.setItem('mvp_notaria_user', JSON.stringify(user));
+    setNeedsInitialAdmin(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await window.notariaDesktop.logout();
     setCurrentUser(null);
-    localStorage.removeItem('mvp_notaria_user');
   };
 
-  // If not logged in, show full-screen LoginPage with centered scale logo and Efas Freelancer attribution
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (isCheckingAuth) {
+    return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Comprobando base SQLite local…</main>;
   }
+  if (desktopError) {
+    return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center p-6"><div className="max-w-lg text-center"><h1 className="text-xl font-bold">No se pudo iniciar NotariaVE</h1><p className="mt-3 text-sm text-rose-300">{desktopError}</p><p className="mt-2 text-sm text-slate-400">La aplicación requiere su entorno de escritorio y su base SQLite local. No se intentará conectar a ningún servicio remoto.</p></div></main>;
+  }
+  if (needsInitialAdmin) return <SetupAdminPage onCreated={handleLogin} />;
+  if (!currentUser) return <LoginPage onLogin={handleLogin} />;
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
