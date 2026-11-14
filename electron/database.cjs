@@ -120,6 +120,19 @@ function openDatabase(userDataPath) {
     migrate();
   }
 
+  const latestVersion = db.prepare('SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations').get().version;
+  if (latestVersion < 3) {
+    const migrate = db.transaction(() => {
+      db.exec(`
+        ALTER TABLE attachments ADD COLUMN content BLOB;
+        CREATE INDEX attachments_entity_idx ON attachments(entity_type, entity_id, created_at);
+        INSERT INTO schema_migrations(version, applied_at)
+        VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      `);
+    });
+    migrate();
+  }
+
   const integrity = db.pragma('quick_check');
   if (!Array.isArray(integrity) || integrity[0]?.quick_check !== 'ok') {
     db.close();
