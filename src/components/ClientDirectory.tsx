@@ -7,6 +7,8 @@ interface ClientDirectoryProps {
   onAddClient: (client: ClientParty) => void;
   onUpdateClient: (client: ClientParty) => void;
   onDeleteClient: (id: string) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onSelectForDocument: (client: ClientParty, role: 'grantor' | 'grantee') => void;
 }
 
@@ -15,6 +17,8 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
   onAddClient,
   onUpdateClient,
   onDeleteClient,
+  canEdit = true,
+  canDelete = true,
   onSelectForDocument,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,13 +100,13 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
           </p>
         </div>
 
-        <button
+        {canEdit && <button
           onClick={handleStartCreate}
           className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold rounded-lg text-xs transition-colors shadow-sm self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
           <span>Registrar Nuevo Cliente</span>
-        </button>
+        </button>}
       </div>
 
       {/* Filter and Search Bar */}
@@ -188,20 +192,20 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1">
-                    <button
+                    {canEdit && <button
                       onClick={() => handleStartEdit(client)}
                       className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded"
                       title="Editar datos del cliente"
                     >
                       <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button
+                    </button>}
+                    {canDelete && <button
                       onClick={() => onDeleteClient(client.id)}
                       className="p-1 text-slate-400 hover:text-rose-500 rounded"
                       title="Eliminar del directorio"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    </button>}
                   </div>
                 </div>
 
@@ -292,13 +296,13 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               Prueba con otro término de búsqueda o registra un nuevo cliente en el directorio.
             </p>
-            <button
+            {canEdit && <button
               onClick={handleStartCreate}
               className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-slate-950 font-semibold rounded-lg text-xs"
             >
               <Plus className="w-4 h-4" />
               <span>Registrar Primer Cliente</span>
-            </button>
+            </button>}
           </div>
         )}
       </div>
@@ -359,7 +363,7 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                     required
                     value={editingClient.fullName || ''}
                     onChange={(e) => setEditingClient({ ...editingClient, fullName: e.target.value })}
-                    placeholder={editingClient.type === 'juridica' ? 'Ej: INVERSIONES MONTE SACRO, C.A.' : 'Ej: CARLOS EDUARDO MENDOZA SILVA'}
+                    placeholder={editingClient.type === 'juridica' ? 'Ej: INVERSIONES MONTE SACRO, C.A.' : 'Ej: Nombre completo del otorgante'}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100"
                   />
                 </div>
@@ -384,7 +388,7 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                         required
                         value={editingClient.idCardNumber || ''}
                         onChange={(e) => setEditingClient({ ...editingClient, idCardNumber: e.target.value })}
-                        placeholder="14.892.341"
+                        placeholder="Número de cédula"
                         className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
@@ -410,7 +414,7 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                         required
                         value={editingClient.rifNumber || ''}
                         onChange={(e) => setEditingClient({ ...editingClient, rifNumber: e.target.value })}
-                        placeholder="14892341-2"
+                        placeholder="Número de RIF"
                         className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>

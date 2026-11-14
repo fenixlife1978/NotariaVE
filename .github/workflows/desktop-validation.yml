@@ -1,0 +1,51 @@
+name: NotariaVE desktop validation
+
+on:
+  push:
+    branches: [desktop-sqlite-migration]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: SQLite migration tests
+        run: npm test
+      - name: TypeScript validation
+        run: npm run lint
+      - name: Renderer production build
+        run: npm run build
+
+  windows-desktop-package:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install Windows dependencies
+        run: npm install --no-audit --no-fund
+      - name: SQLite tests on Windows
+        run: npm test
+      - name: TypeScript validation
+        run: npm run lint
+      - name: Build Windows NSIS installer
+        run: npm run desktop:build
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NotariaVE-Windows-Installer
+          path: release/*.exe
+          if-no-files-found: error

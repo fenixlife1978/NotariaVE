@@ -1,0 +1,139 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { openDatabase } = require('../electron/database.cjs');
+const { createVerifiedBackup, verifyBackup } = require('../electron/backup.cjs');
+const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('../electron/legacy-import.cjs');
+
+function withTempDatabase(run) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-sqlite-'));
+  let opened;
+  try {
+    opened = openDatabase(dir);
+    run(opened.db);
+  } finally {
+    if (opened?.db?.open) opened.db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('creates an isolated local SQLite schema with foreign keys enabled', () => {
+  withTempDatabase((db) => {
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row) => row.name);
+    for (const name of ['users', 'clients', 'documents', 'app_settings', 'audit_log', 'attachments', 'external_lookups', 'schema_migrations']) {
+      assert.ok(tables.includes(name), `missing table: ${name}`);
+    }
+    assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
+    assert.equal(db.pragma('journal_mode', { simple: true }), 'wal');
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
+    assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 3);
+    const documentColumns = db.prepare('PRAGMA table_info(documents)').all().map((column) => column.name);
+    assert.ok(documentColumns.includes('updated_by'));
+    assert.ok(documentColumns.includes('revision'));
+  });
+});
+
+test('keeps the schema migration idempotent across reopen', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-migration-'));
+  try {
+    let first = openDatabase(dir);
+    first.db.close();
+    const second = openDatabase(dir);
+    try {
+      assert.equal(second.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 3);
+      assert.equal(second.db.pragma('quick_check')[0].quick_check, 'ok');
+    } finally {
+      second.db.close();
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('persists document payloads with revision metadata and audit references', () => {
+  withTempDatabase((db) => {
+    const now = new Date().toISOString();
+    const userId = 'test-admin';
+    db.prepare(`
+      INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at)
+      VALUES (?, ?, ?, 'admin', ?, ?, ?, ?)
+    `).run(userId, 'admin', 'Administrador de prueba', Buffer.alloc(16), Buffer.alloc(64), now, now);
+    const payload = JSON.stringify({ formData: { title: 'PODER ESPECIAL' }, customDraftText: 'Borrador de prueba' });
+    db.prepare(`
+      INSERT INTO documents(id, title, template_id, status, data_json, created_by, updated_by, created_at, updated_at, revision)
+      VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)
+    `).run('doc-1', 'PODER ESPECIAL', 'poder-especial', payload, userId, userId, now, now);
+    const saved = db.prepare('SELECT title, data_json, revision, created_by FROM documents WHERE id = ?').get('doc-1');
+    assert.equal(saved.title, 'PODER ESPECIAL');
+    assert.equal(JSON.parse(saved.data_json).customDraftText, 'Borrador de prueba');
+    assert.equal(saved.revision, 1);
+    assert.equal(saved.created_by, userId);
+    db.prepare('UPDATE documents SET revision = revision + 1 WHERE id = ?').run('doc-1');
+    assert.equal(db.prepare('SELECT revision FROM documents WHERE id = ?').get('doc-1').revision, 2);
+  });
+});
+
+test('creates a verifiable backup with manifest and detects tampering', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-backup-'));
+  let opened;
+  try {
+    opened = openDatabase(dir);
+    const timestamp = new Date().toISOString();
+    opened.db.prepare(`INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('backup-admin', 'admin', 'Administrador', 'admin', ?, ?, ?, ?)`).run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+    const backupPath = path.join(dir, 'user-backup.sqlite');
+    const created = await createVerifiedBackup(opened.db, backupPath);
+    assert.equal(created.schemaVersion, 3);
+    assert.equal(fs.existsSync(backupPath), true);
+    assert.equal(fs.existsSync(backupPath + '.manifest.json'), true);
+    const verified = verifyBackup(backupPath);
+    assert.equal(verified.sha256, created.sha256);
+    assert.deepEqual(verified.counts, created.counts);
+    fs.appendFileSync(backupPath, Buffer.from('tampered'));
+    assert.throws(() => verifyBackup(backupPath), /SHA-256/);
+  } finally {
+    if (opened?.db?.open) opened.db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('validates legacy browser export and identifies known demo records', () => {
+  const demoClient = { id: 'cli-1', fullName: 'Carlos Eduardo Mendoza Silva', idCardNumber: '14.892.341', rifNumber: '14892341-2', phone: '+58 414-230-8812', email: 'carlos.mendoza.ve@gmail.com' };
+  const demoLawyer = { fullName: 'Dr. Luis Alejandro Briceño Rivas', inpreabogado: '148.902', barAssociationState: 'Distrito Capital', barRegNumber: '45.120', officeAddress: 'Av. Francisco de Miranda, Edificio Centro Plaza, Torre B, Piso 14, Oficina 14-C, Los Palos Grandes, Caracas', phone: '+58 212-285-4433', email: 'escritorio.briceno.asociados@gmail.com' };
+  const demoCriteria = { state: 'Distrito Capital', municipality: 'Libertador', officeType: 'Notaría Pública', officeName: 'Notaría Pública Segunda de Caracas (Distrito Capital)', topMarginMm: 40, bottomMarginMm: 25, leftMarginMm: 40, rightMarginMm: 20, fontFamily: 'Times New Roman', fontSizePt: 12, lineSpacing: 1.5, enableProtocolLines: false, strictSarenFormatting: true, bcvRate: 68.5 };
+  const parsed = validateLegacyExport({
+    format: 'notariave-legacy-export',
+    version: 1,
+    data: { clients: [demoClient, { id: 'real-1', fullName: 'Cliente Real' }], lawyer: demoLawyer, criteria: demoCriteria },
+  });
+  assert.equal(parsed.clients.length, 2);
+  assert.equal(isSeedDemoClient(parsed.clients[0]), true);
+  assert.equal(isSeedDemoClient(parsed.clients[1]), false);
+  assert.equal(isSeedDemoLawyer(parsed.lawyer), true);
+  assert.equal(isSeedDemoCriteria(parsed.criteria), true);
+  assert.throws(() => validateLegacyExport({ format: 'wrong', version: 1, data: {} }), /formato/);
+  assert.throws(() => validateLegacyExport({ format: 'notariave-legacy-export', version: 1, data: { clients: [{ fullName: '' }] } }), /nombre válido/);
+});
+test('stores attachment bytes inside SQLite and includes them in verified backups', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-attachments-'));
+  try {
+    const first = openDatabase(dir);
+    const timestamp = new Date().toISOString();
+    first.db.prepare("INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('attachment-admin', 'admin', 'Administrador', 'admin', ?, ?, ?, ?)").run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+    first.db.prepare("INSERT INTO documents(id, title, template_id, data_json, created_by, created_at, updated_at) VALUES ('doc-attach', 'Documento de prueba', 'poder', '{}', 'attachment-admin', ?, ?)").run(timestamp, timestamp);
+    const bytes = Buffer.from('contenido de prueba');
+    first.db.prepare("INSERT INTO attachments(id, entity_type, entity_id, relative_path, original_name, mime_type, size_bytes, sha256, created_at, content) VALUES ('att-1', 'document', 'doc-attach', 'sqlite-blob:att-1', 'prueba.txt', 'text/plain', ?, 'hash', ?, ?)").run(bytes.length, timestamp, bytes);
+    first.db.close();
+    const second = openDatabase(dir);
+    try {
+      const saved = second.db.prepare("SELECT content, size_bytes FROM attachments WHERE id = 'att-1'").get();
+      assert.deepEqual(saved.content, bytes);
+      assert.equal(saved.size_bytes, bytes.length);
+      const backupPath = path.join(dir, 'attachments-backup.sqlite');
+      const backup = await createVerifiedBackup(second.db, backupPath);
+      assert.equal(backup.counts.attachments, 1);
+      assert.equal(verifyBackup(backupPath).counts.attachments, 1);
+    } finally { second.db.close(); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

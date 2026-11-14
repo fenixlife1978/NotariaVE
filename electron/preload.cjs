@@ -1,0 +1,26 @@
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('notariaDesktop', {
+  getStatus: () => ipcRenderer.invoke('app:get-status'),
+  bootstrapAdmin: (input) => ipcRenderer.invoke('auth:bootstrap-admin', input),
+  login: (input) => ipcRenderer.invoke('auth:login', input),
+  logout: () => ipcRenderer.invoke('auth:logout'),
+  listClients: () => ipcRenderer.invoke('clients:list'),
+  saveClient: (client) => ipcRenderer.invoke('clients:save', client),
+  deleteClient: (id) => ipcRenderer.invoke('clients:delete', id),
+  listDocuments: () => ipcRenderer.invoke('documents:list'),
+  saveDocument: (input) => ipcRenderer.invoke('documents:save', input),
+  createBackup: () => ipcRenderer.invoke('backup:create'),
+  restoreBackup: () => ipcRenderer.invoke('backup:restore'),
+  selectLegacyImport: () => ipcRenderer.invoke('legacy:select'),
+  importLegacyData: (token, options) => ipcRenderer.invoke('legacy:import', { token, ...options }),
+  getSetting: (key) => ipcRenderer.invoke('settings:get', key),
+  saveSetting: (key, value) => ipcRenderer.invoke('settings:save', { key, value }),
+  listUsers: () => ipcRenderer.invoke('users:list'),
+  createUser: (input) => ipcRenderer.invoke('users:create', input),
+  updateUser: (input) => ipcRenderer.invoke('users:update', input),
+  listAttachments: (input) => ipcRenderer.invoke('attachments:list', input),
+  addAttachment: (input) => ipcRenderer.invoke('attachments:add', input),
+  exportAttachment: (id) => ipcRenderer.invoke('attachments:export', id),
+  deleteAttachment: (id) => ipcRenderer.invoke('attachments:delete', id),
+});
