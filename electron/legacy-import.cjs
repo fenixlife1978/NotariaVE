@@ -23,6 +23,8 @@ function validateLegacyExport(value) {
   const criteria = data.criteria == null ? null : data.criteria;
   if (lawyer !== null && (typeof lawyer !== 'object' || Array.isArray(lawyer))) throw new Error('El perfil profesional no tiene una estructura válida.');
   if (criteria !== null && (typeof criteria !== 'object' || Array.isArray(criteria))) throw new Error('Los criterios notariales no tienen una estructura válida.');
+  if (lawyer && Buffer.byteLength(JSON.stringify(lawyer), 'utf8') > 500_000) throw new Error('El perfil profesional supera el tamaño permitido.');
+  if (criteria && Buffer.byteLength(JSON.stringify(criteria), 'utf8') > 500_000) throw new Error('Los criterios notariales superan el tamaño permitido.');
   return { clients, lawyer, criteria, exportedAt: value.exportedAt || null };
 }
 
