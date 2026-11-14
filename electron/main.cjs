@@ -228,7 +228,9 @@ function registerIpc() {
         databasePath = recovered.dbPath;
         throw error;
       }
-      if (fs.existsSync(displacedPath)) fs.unlinkSync(displacedPath);
+      if (fs.existsSync(displacedPath)) {
+        try { fs.unlinkSync(displacedPath); } catch (cleanupError) { console.error('No se pudo retirar el archivo desplazado:', cleanupError); }
+      }
       activeSession = null;
       if (fs.existsSync(stagedManifest)) fs.unlinkSync(stagedManifest);
       setTimeout(() => {
@@ -242,6 +244,9 @@ function registerIpc() {
         counts: verified.counts,
       };
     } catch (error) {
+      if (fs.existsSync(displacedPath) && !fs.existsSync(databasePath)) {
+        fs.renameSync(displacedPath, databasePath);
+      }
       if (!db || !db.open) {
         try {
           const recovered = openDatabase(userDataPath);
