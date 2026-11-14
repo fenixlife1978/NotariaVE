@@ -578,6 +578,20 @@ function registerIpc() {
     return { updated: true };
   });
 
+  handleIpc('audit:list', (_event, input = {}) => {
+    requireAdmin();
+    const limit = Math.min(500, Math.max(1, Number.isInteger(input.limit) ? input.limit : 100));
+    const offset = Math.max(0, Number.isInteger(input.offset) ? input.offset : 0);
+    return db.prepare(`
+      SELECT a.id, a.actor_user_id AS actorUserId, u.username AS actorUsername,
+        u.full_name AS actorFullName, a.action, a.entity_type AS entityType,
+        a.entity_id AS entityId, a.details_json AS detailsJson, a.created_at AS createdAt
+      FROM audit_log a
+      LEFT JOIN users u ON u.id = a.actor_user_id
+      ORDER BY a.id DESC LIMIT ? OFFSET ?
+    `).all(limit, offset).map(row => ({ ...row, details: JSON.parse(row.detailsJson) }));
+  });
+
   handleIpc('settings:get', (_event, key) => {
     requireSession();
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
