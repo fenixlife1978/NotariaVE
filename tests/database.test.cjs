@@ -115,7 +115,7 @@ test('validates legacy browser export and identifies known demo records', () => 
   assert.throws(() => validateLegacyExport({ format: 'wrong', version: 1, data: {} }), /formato/);
   assert.throws(() => validateLegacyExport({ format: 'notariave-legacy-export', version: 1, data: { clients: [{ fullName: '' }] } }), /nombre válido/);
 });
-test('stores attachment bytes inside SQLite and preserves them after reopening', () => {
+test('stores attachment bytes inside SQLite and includes them in verified backups', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-attachments-'));
   try {
     const first = openDatabase(dir);
@@ -130,6 +130,12 @@ test('stores attachment bytes inside SQLite and preserves them after reopening',
       const saved = second.db.prepare("SELECT content, size_bytes FROM attachments WHERE id = 'att-1'").get();
       assert.deepEqual(saved.content, bytes);
       assert.equal(saved.size_bytes, bytes.length);
+      const backupPath = path.join(dir, 'attachments-backup.sqlite');
+      const backup = await createVerifiedBackup(second.db, backupPath);
+      assert.equal(backup.counts.attachments, 1);
+      assert.equal(verifyBackup(backupPath).counts.attachments, 1);
+      const backupDb = openDatabase(path.join(dir, 'restored-copy'));
+      backupDb.db.close();
     } finally { second.db.close(); }
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
