@@ -5,12 +5,14 @@ const { pathToFileURL } = require('node:url');
 const { randomUUID, randomBytes, scryptSync, timingSafeEqual } = require('node:crypto');
 const { openDatabase } = require('./database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
+const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
 
 let mainWindow;
 let db;
 let activeSession = null;
 let databasePath;
 let userDataPath;
+let pendingLegacyImport = null;
 
 const now = () => new Date().toISOString();
 const normalizeUsername = (value) => String(value || '').trim().toLowerCase();
@@ -263,6 +265,116 @@ function registerIpc() {
       if (fs.existsSync(stagedManifest)) fs.unlinkSync(stagedManifest);
       throw error;
     }
+  });
+
+  ipcMain.handle('legacy:select', async () => {
+    requireSession();
+    const selection = await dialog.showOpenDialog(mainWindow, {
+      title: 'Seleccionar exportación de NotariaVE anterior',
+      buttonLabel: 'Revisar datos',
+      properties: ['openFile'],
+      filters: [{ name: 'Exportación JSON', extensions: ['json'] }],
+    });
+    if (selection.canceled || selection.filePaths.length === 0) return { canceled: true };
+    const filePath = selection.filePaths[0];
+    const stat = fs.statSync(filePath);
+    if (stat.size > 15 * 1024 * 1024) throw new Error('El archivo supera el máximo permitido de 15 MB.');
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    } catch {
+      throw new Error('No se pudo leer el JSON. Verifique que el archivo de exportación esté completo.');
+    }
+    const data = validateLegacyExport(parsed);
+    const token = randomUUID();
+    pendingLegacyImport = { token, fileName: path.basename(filePath), data };
+    return {
+      canceled: false,
+      token,
+      fileName: path.basename(filePath),
+      clientsCount: data.clients.length,
+      suspectedDemoClients: data.clients.filter(isSeedDemoClient).length,
+      hasLawyer: Boolean(data.lawyer) && !isSeedDemoLawyer(data.lawyer),
+      suspectedDemoLawyer: isSeedDemoLawyer(data.lawyer),
+      hasCriteria: Boolean(data.criteria) && !isSeedDemoCriteria(data.criteria),
+      suspectedDemoCriteria: isSeedDemoCriteria(data.criteria),
+    };
+  });
+
+  ipcMain.handle('legacy:import', (_event, input = {}) => {
+    const actor = requireSession();
+    const token = String(input.token || '');
+    if (!pendingLegacyImport || !token || token !== pendingLegacyImport.token) {
+      throw new Error('La revisión de importación expiró. Seleccione nuevamente el archivo.');
+    }
+    const pending = pendingLegacyImport;
+    pendingLegacyImport = null;
+    const transaction = db.transaction(() => {
+      let importedClients = 0;
+      let skippedDuplicates = 0;
+      let skippedDemoClients = 0;
+      const findDuplicate = db.prepare(`
+        SELECT id FROM clients
+        WHERE id = ?
+          OR (? <> '' AND id_card_number = ?)
+          OR (? <> '' AND rif_number = ?)
+        LIMIT 1
+      `);
+      const insertClient = db.prepare(`
+        INSERT INTO clients(id, full_name, id_card_number, rif_number, data_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const client of pending.data.clients) {
+        if (isSeedDemoClient(client)) {
+          skippedDemoClients += 1;
+          continue;
+        }
+        const fullName = client.fullName.trim();
+        const suppliedId = String(client.id || '').trim();
+        const id = suppliedId.length > 0 && suppliedId.length <= 80 ? suppliedId : randomUUID();
+        const idCardNumber = String(client.idCardNumber || '').trim();
+        const rifNumber = String(client.rifNumber || '').trim();
+        if (findDuplicate.get(id, idCardNumber, idCardNumber, rifNumber, rifNumber)) {
+          skippedDuplicates += 1;
+          continue;
+        }
+        const saved = { ...client, id, fullName };
+        const timestamp = now();
+        insertClient.run(id, fullName, idCardNumber, rifNumber, JSON.stringify(saved), timestamp, timestamp);
+        importedClients += 1;
+      }
+
+      let lawyerImported = false;
+      let lawyerSkippedDemo = false;
+      if (pending.data.lawyer) {
+        if (isSeedDemoLawyer(pending.data.lawyer)) lawyerSkippedDemo = true;
+        else {
+          db.prepare(`
+            INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('lawyer_profile', ?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
+          `).run(JSON.stringify(pending.data.lawyer), now());
+          lawyerImported = true;
+        }
+      }
+
+      let criteriaImported = false;
+      let criteriaSkippedDemo = false;
+      if (pending.data.criteria) {
+        if (isSeedDemoCriteria(pending.data.criteria)) criteriaSkippedDemo = true;
+        else {
+          db.prepare(`
+            INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('saren_criteria', ?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
+          `).run(JSON.stringify(pending.data.criteria), now());
+          criteriaImported = true;
+        }
+      }
+
+      const summary = { fileName: pending.fileName, importedClients, skippedDuplicates, skippedDemoClients, lawyerImported, lawyerSkippedDemo, criteriaImported, criteriaSkippedDemo };
+      writeAudit(actor.id, 'legacy_data_imported', 'database', null, summary);
+      return summary;
+    });
+    return transaction();
   });
 
   ipcMain.handle('settings:get', (_event, key) => {
