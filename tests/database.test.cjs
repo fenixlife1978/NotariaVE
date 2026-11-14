@@ -186,3 +186,32 @@ test('rejects hardlinks and Windows case aliases of the active SQLite database',
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+\nconst { assertRoleAllowed, assertValidRole, assertAdminRemainsActive, VALID_ROLES } = require('../electron/access-policy.cjs');
+
+test('enforces the four local roles and denies all unlisted roles', () => {
+  assert.deepEqual(VALID_ROLES, ['admin', 'abogado', 'asistente', 'consulta']);
+  assert.doesNotThrow(() => assertRoleAllowed('consulta', ['consulta']));
+  assert.throws(() => assertRoleAllowed('consulta', ['admin', 'abogado', 'asistente']), /no tiene permiso/);
+  assert.doesNotThrow(() => assertValidRole('asistente'));
+  assert.throws(() => assertValidRole('super-admin'), /Perfil de usuario no permitido/);
+});
+
+test('prevents self-lockout and removal of the last active administrator', () => {
+  assert.throws(() => assertAdminRemainsActive({
+    actorId: 'admin-1', targetId: 'admin-1', targetRole: 'admin',
+    nextRole: 'consulta', nextActive: 1, otherActiveAdmins: 0,
+  }), /No puede desactivar ni quitarse/);
+  assert.throws(() => assertAdminRemainsActive({
+    actorId: 'admin-2', targetId: 'admin-1', targetRole: 'admin',
+    nextRole: 'abogado', nextActive: 1, otherActiveAdmins: 0,
+  }), /Debe existir al menos un administrador/);
+  assert.doesNotThrow(() => assertAdminRemainsActive({
+    actorId: 'admin-2', targetId: 'admin-1', targetRole: 'admin',
+    nextRole: 'abogado', nextActive: 1, otherActiveAdmins: 1,
+  }));
+  assert.doesNotThrow(() => assertAdminRemainsActive({
+    actorId: 'admin-1', targetId: 'admin-1', targetRole: 'admin',
+    nextRole: 'admin', nextActive: 1, otherActiveAdmins: 0,
+  }));
+});
