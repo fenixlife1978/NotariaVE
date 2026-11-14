@@ -18,6 +18,9 @@ declare global {
       importLegacyData(token: string, options?: { includeDemoRecords?: boolean }): Promise<{ fileName: string; importedClients: number; skippedDuplicates: number; skippedDemoClients: number; lawyerImported: boolean; lawyerSkippedDemo: boolean; criteriaImported: boolean; criteriaSkippedDemo: boolean; includeDemoRecords: boolean }>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
+      listUsers(): Promise<Array<{ id: string; username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; active: boolean; createdAt: string; updatedAt: string }>>;
+      createUser(input: { username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; password: string }): Promise<{ id: string; username: string; fullName: string; role: string; active: boolean }>;
+      updateUser(input: { id: string; role?: 'admin' | 'abogado' | 'asistente' | 'consulta'; active?: boolean; fullName?: string; password?: string }): Promise<{ updated: boolean }>;
     };
   }
 }
