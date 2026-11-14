@@ -142,7 +142,6 @@ function registerIpc() {
       `).run(id, username, fullName, salt, hash, now(), now());
       writeAudit(id, 'bootstrap_admin', 'user', id, { username });
     })();
-    activeSession = { userId: id };
     return safeUser(db.prepare('SELECT * FROM users WHERE id = ?').get(id));
   });
 
