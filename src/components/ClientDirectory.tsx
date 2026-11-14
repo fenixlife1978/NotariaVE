@@ -359,7 +359,7 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                     required
                     value={editingClient.fullName || ''}
                     onChange={(e) => setEditingClient({ ...editingClient, fullName: e.target.value })}
-                    placeholder={editingClient.type === 'juridica' ? 'Ej: INVERSIONES MONTE SACRO, C.A.' : 'Ej: CARLOS EDUARDO MENDOZA SILVA'}
+                    placeholder={editingClient.type === 'juridica' ? 'Ej: INVERSIONES MONTE SACRO, C.A.' : 'Ej: Nombre completo del otorgante'}
                     className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-slate-100"
                   />
                 </div>
@@ -384,7 +384,7 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                         required
                         value={editingClient.idCardNumber || ''}
                         onChange={(e) => setEditingClient({ ...editingClient, idCardNumber: e.target.value })}
-                        placeholder="14.892.341"
+                        placeholder="Número de cédula"
                         className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
@@ -410,7 +410,7 @@ export const ClientDirectory: React.FC<ClientDirectoryProps> = ({
                         required
                         value={editingClient.rifNumber || ''}
                         onChange={(e) => setEditingClient({ ...editingClient, rifNumber: e.target.value })}
-                        placeholder="14892341-2"
+                        placeholder="Número de RIF"
                         className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
