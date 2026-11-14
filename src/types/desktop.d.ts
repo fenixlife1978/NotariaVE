@@ -3,7 +3,7 @@ export {};
 declare global {
   interface Window {
     notariaDesktop: {
-      getStatus(): Promise<{ databasePath: string; needsInitialAdmin: boolean; authenticated: boolean }>;
+      getStatus(): Promise<{ needsInitialAdmin: boolean }>;
       bootstrapAdmin(input: { username: string; fullName: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       login(input: { username: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       logout(): Promise<{ success: boolean }>;
