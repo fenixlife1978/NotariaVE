@@ -81,7 +81,7 @@ test('creates a verifiable backup with manifest and detects tampering', async ()
   try {
     opened = openDatabase(dir);
     const timestamp = new Date().toISOString();
-    opened.db.prepare(\`INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('backup-admin', 'admin', 'Administrador', 'admin', ?, ?, ?, ?)\`).run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+    opened.db.prepare(`INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('backup-admin', 'admin', 'Administrador', 'admin', ?, ?, ?, ?)`).run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
     const backupPath = path.join(dir, 'user-backup.sqlite');
     const created = await createVerifiedBackup(opened.db, backupPath);
     assert.equal(created.schemaVersion, 2);
