@@ -4,7 +4,7 @@
 
 ## Estado
 
-La migración de escritorio está en curso en la rama `desktop-sqlite-migration`. No se debe usar todavía para trabajo profesional con datos reales ni fusionar a `main`. Consulta [el estado detallado de migración](docs/ESTADO-MIGRACION-ESCRITORIO.md) y la [auditoría base](docs/AUDITORIA-BASE-MIGRACION.md).
+La migración de escritorio está en curso en la rama `desktop-sqlite-migration`. No se debe usar todavía para trabajo profesional con datos reales ni fusionar a `main`. Consulta [el estado detallado de migración](docs/ESTADO-MIGRACION-ESCRITORIO.md), la [guía para exportar datos anteriores](docs/EXPORTAR-DATOS-ANTERIORES.md) y la [auditoría base](docs/AUDITORIA-BASE-MIGRACION.md).
 
 ## Requisitos de desarrollo
 
