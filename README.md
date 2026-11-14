@@ -39,4 +39,4 @@ La aplicación crea su base en el directorio de datos de usuario administrado po
 
 ## Seguridad y recuperación
 
-El esquema SQLite inicial aplica WAL, claves foráneas y comprobación de integridad. La implementación de backups/restauración, migración de datos existentes, gestión de usuarios y persistencia integral de expedientes sigue pendiente. No introducir datos reales hasta completar esas fases y ejecutar las pruebas de aceptación.
+El esquema SQLite inicial aplica WAL, claves foráneas y comprobación de integridad. La persistencia SQLite de expedientes ya está integrada en el editor, con búsqueda, reapertura y revisiones. La validación funcional completa, backups/restauración, migración de datos existentes y gestión de usuarios adicionales siguen pendientes. No introducir datos reales hasta completar esas fases y ejecutar las pruebas de aceptación.
