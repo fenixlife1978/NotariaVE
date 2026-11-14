@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" role="img" aria-label="Notaría VE, trámites rápidos para abogados">
+<rect x="8" y="8" width="230" height="230" rx="52" fill="#102c4d"/>
+<g fill="none" stroke="#f7f5ef" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M123 48v164M78 207h90M48 91h150M48 91 23 160M48 91l27 69M198 91l-27 69M198 91l-27 69"/><path d="M23 160c0 24 50 24 52 0M171 160c2 24 52 24 52 0" fill="#e8aa24" stroke="#e8aa24"/></g>
+<circle cx="123" cy="42" r="12" fill="#e8aa24"/>
+<text x="275" y="145" font-family="Arial, Helvetica, sans-serif" font-size="82" font-weight="700" fill="#102c4d">Notaría</text>
+<rect x="615" y="77" width="125" height="66" rx="16" fill="#e8aa24"/><text x="635" y="126" font-family="Arial, Helvetica, sans-serif" font-size="47" font-weight="700" fill="#102c4d">VE</text>
+<text x="278" y="188" font-family="Arial, Helvetica, sans-serif" font-size="25" letter-spacing="1.2" fill="#68758a">Trámites rápidos para abogados</text>
+<rect x="278" y="207" width="74" height="8" rx="4" fill="#f2bd30"/><rect x="352" y="207" width="74" height="8" fill="#244c82"/><rect x="426" y="207" width="74" height="8" rx="4" fill="#c92e3e"/>
+</svg>
