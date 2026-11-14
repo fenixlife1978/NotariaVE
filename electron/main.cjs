@@ -1,12 +1,16 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { randomUUID, randomBytes, scryptSync, timingSafeEqual } = require('node:crypto');
 const { openDatabase } = require('./database.cjs');
+const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 
 let mainWindow;
 let db;
 let activeSession = null;
+let databasePath;
+let userDataPath;
 
 const now = () => new Date().toISOString();
 const normalizeUsername = (value) => String(value || '').trim().toLowerCase();
@@ -161,6 +165,98 @@ function registerIpc() {
     return { ...row, payload: JSON.parse(row.dataJson) };
   });
 
+  ipcMain.handle('backup:create', async () => {
+    const actor = requireSession();
+    const suggestedName = `NotariaVE-respaldo-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`;
+    const selection = await dialog.showSaveDialog(mainWindow, {
+      title: 'Guardar respaldo SQLite de NotariaVE',
+      defaultPath: path.join(app.getPath('documents'), suggestedName),
+      buttonLabel: 'Crear respaldo',
+      filters: [{ name: 'Base SQLite', extensions: ['sqlite'] }],
+    });
+    if (selection.canceled || !selection.filePath) return { canceled: true };
+    const result = await createVerifiedBackup(db, selection.filePath);
+    writeAudit(actor.id, 'backup_created', 'database', null, { fileName: result.fileName, sha256: result.sha256 });
+    return {
+      canceled: false,
+      fileName: result.fileName,
+      sha256: result.sha256,
+      createdAt: result.createdAt,
+      counts: result.counts,
+    };
+  });
+
+  ipcMain.handle('backup:restore', async () => {
+    const actor = requireSession();
+    const selection = await dialog.showOpenDialog(mainWindow, {
+      title: 'Seleccionar respaldo verificado de NotariaVE',
+      buttonLabel: 'Verificar y restaurar',
+      properties: ['openFile'],
+      filters: [{ name: 'Base SQLite', extensions: ['sqlite'] }],
+    });
+    if (selection.canceled || selection.filePaths.length === 0) return { canceled: true };
+    const selectedPath = selection.filePaths[0];
+    const verified = verifyBackup(selectedPath);
+    const backupDirectory = path.join(userDataPath, 'data', 'backups');
+    fs.mkdirSync(backupDirectory, { recursive: true });
+    const safetyPath = path.join(backupDirectory, `NotariaVE-antes-de-restaurar-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
+    const safetyCopy = await createVerifiedBackup(db, safetyPath);
+    const stagedPath = `${databasePath}.restore-${randomUUID()}`;
+    const stagedManifest = `${stagedPath}.manifest.json`;
+    fs.copyFileSync(selectedPath, stagedPath);
+    fs.copyFileSync(`${selectedPath}.manifest.json`, stagedManifest);
+    verifyBackup(stagedPath);
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+    const displacedPath = `${databasePath}.displaced-${randomUUID()}`;
+    try {
+      for (const suffix of ['-wal', '-shm']) {
+        const sidecar = `${databasePath}${suffix}`;
+        if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+      }
+      fs.renameSync(databasePath, displacedPath);
+      fs.renameSync(stagedPath, databasePath);
+      try {
+        const reopened = openDatabase(userDataPath);
+        db = reopened.db;
+        databasePath = reopened.dbPath;
+      } catch (error) {
+        if (fs.existsSync(databasePath)) fs.unlinkSync(databasePath);
+        fs.renameSync(displacedPath, databasePath);
+        const recovered = openDatabase(userDataPath);
+        db = recovered.db;
+        databasePath = recovered.dbPath;
+        throw error;
+      }
+      if (fs.existsSync(displacedPath)) fs.unlinkSync(displacedPath);
+      activeSession = null;
+      if (fs.existsSync(stagedManifest)) fs.unlinkSync(stagedManifest);
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
+      }, 250);
+      return {
+        canceled: false,
+        restored: true,
+        fileName: verified.fileName,
+        safetyBackup: safetyCopy.fileName,
+        counts: verified.counts,
+      };
+    } catch (error) {
+      if (!db || !db.open) {
+        try {
+          const recovered = openDatabase(userDataPath);
+          db = recovered.db;
+          databasePath = recovered.dbPath;
+        } catch (recoveryError) {
+          console.error('No se pudo reabrir SQLite después de restaurar:', recoveryError);
+        }
+      }
+      if (fs.existsSync(stagedPath)) fs.unlinkSync(stagedPath);
+      if (fs.existsSync(stagedManifest)) fs.unlinkSync(stagedManifest);
+      throw error;
+    }
+  });
+
   ipcMain.handle('settings:get', (_event, key) => {
     requireSession();
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
@@ -221,8 +317,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  const opened = openDatabase(app.getPath('userData'));
+  userDataPath = app.getPath('userData');
+  const opened = openDatabase(userDataPath);
   db = opened.db;
+  databasePath = opened.dbPath;
   registerIpc();
   createWindow();
   app.on('activate', () => {
