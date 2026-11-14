@@ -42,24 +42,29 @@ async function createVerifiedBackup(sourceDb, destinationPath, DatabaseCtor = Da
   fs.mkdirSync(directory, { recursive: true });
   const temporaryPath = `${destinationPath}.tmp-${crypto.randomUUID()}`;
   const manifestPath = `${destinationPath}.manifest.json`;
+  const temporaryManifest = `${manifestPath}.tmp-${crypto.randomUUID()}`;
+  let installedDatabase = false;
   try {
     await sourceDb.backup(temporaryPath);
     const inspection = inspectDatabase(temporaryPath, DatabaseCtor);
-    if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
-    fs.renameSync(temporaryPath, destinationPath);
     const manifest = {
       format: 'notariave-sqlite-backup',
       formatVersion: 1,
       createdAt: new Date().toISOString(),
-      sha256: sha256File(destinationPath),
+      sha256: sha256File(temporaryPath),
       ...inspection,
     };
-    const temporaryManifest = `${manifestPath}.tmp-${crypto.randomUUID()}`;
     fs.writeFileSync(temporaryManifest, JSON.stringify(manifest, null, 2), { flag: 'wx' });
+    if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
+    if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
+    fs.renameSync(temporaryPath, destinationPath);
+    installedDatabase = true;
     fs.renameSync(temporaryManifest, manifestPath);
     return { filePath: destinationPath, fileName: path.basename(destinationPath), manifestPath, ...manifest };
   } catch (error) {
     if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
+    if (fs.existsSync(temporaryManifest)) fs.unlinkSync(temporaryManifest);
+    if (installedDatabase && fs.existsSync(destinationPath) && !fs.existsSync(manifestPath)) fs.unlinkSync(destinationPath);
     throw error;
   }
 }
