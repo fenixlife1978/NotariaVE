@@ -86,6 +86,7 @@ interface DocumentEditorProps {
   initialFormData?: DocumentFormData | null;
   savedDocuments: SavedDocument[];
   onSaveDocument: (input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }) => Promise<SavedDocument>;
+  canSave?: boolean;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -95,6 +96,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   initialFormData,
   savedDocuments,
   onSaveDocument,
+  canSave = true,
 }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
     initialFormData?.templateId || 'venta-vehiculo'
@@ -2142,9 +2144,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
-              <button type="button" onClick={handleSaveDocument} disabled={isSavingDocument} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-bold">
+              {canSave && <button type="button" onClick={handleSaveDocument} disabled={isSavingDocument} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-bold">
                 <Save className="w-3.5 h-3.5" /> {isSavingDocument ? 'Guardando...' : currentDocumentId ? 'Guardar cambios' : 'Guardar expediente'}
-              </button>
+              </button>}
               {/* Statutory Legal Validation Seal Badge */}
               {minLegalValidation.canExport ? (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">
