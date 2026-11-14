@@ -13,6 +13,7 @@ import { ClientDirectory } from './components/ClientDirectory';
 import { SarenSettingsView } from './components/SarenSettingsModal';
 import { BackupManager } from './components/BackupManager';
 import { LegacyImportManager } from './components/LegacyImportManager';
+import { UserAdministration } from './components/UserAdministration';
 import { INITIAL_LAWYER, INITIAL_SAREN_CRITERIA } from './data/initialData';
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
@@ -30,7 +31,7 @@ export default function App() {
       .finally(() => setIsCheckingAuth(false));
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings' | 'users'>('editor');
 
   const [clients, setClients] = useState<ClientParty[]>([]);
   const [lawyer, setLawyer] = useState<LawyerProfile>(INITIAL_LAWYER);
@@ -55,8 +56,6 @@ export default function App() {
       setSavedDocuments(storedDocuments);
       setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
       setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
-      if (!storedLawyer) await window.notariaDesktop.saveSetting('lawyer_profile', INITIAL_LAWYER);
-      if (!storedCriteria) await window.notariaDesktop.saveSetting('saren_criteria', INITIAL_SAREN_CRITERIA);
     })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
   }, [currentUser]);
@@ -213,7 +212,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'settings' && (
+        {activeTab === 'settings' && currentUser.role === 'admin' && (
           <>
           <SarenSettingsView
             criteria={criteria}
@@ -227,6 +226,8 @@ export default function App() {
           </div>
           </>
         )}
+
+        {activeTab === 'users' && currentUser.role === 'admin' && <UserAdministration />}
       </main>
 
       {/* Professional Footer with Developer Attribution */}
