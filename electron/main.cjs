@@ -112,6 +112,55 @@ function registerIpc() {
     return { deleted: result.changes > 0 };
   });
 
+  ipcMain.handle('documents:list', () => {
+    requireSession();
+    return db.prepare(`
+      SELECT id, title, template_id AS templateId, status, data_json AS dataJson,
+        created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt,
+        updated_at AS updatedAt, revision
+      FROM documents
+      ORDER BY updated_at DESC
+    `).all().map((row) => ({ ...row, ...JSON.parse(row.dataJson) }));
+  });
+
+  ipcMain.handle('documents:save', (_event, input = {}) => {
+    const actor = requireSession();
+    const id = String(input.id || randomUUID()).trim();
+    const title = String(input.title || '').trim();
+    const templateId = String(input.templateId || '').trim();
+    const payload = input.payload;
+    if (!id || id.length > 80) throw new Error('Identificador de expediente no válido.');
+    if (title.length < 3 || title.length > 240) throw new Error('El título del documento debe tener entre 3 y 240 caracteres.');
+    if (!templateId || templateId.length > 120) throw new Error('Tipo de documento no válido.');
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('El contenido del documento no es válido.');
+    const dataJson = JSON.stringify(payload);
+    if (Buffer.byteLength(dataJson, 'utf8') > 2_000_000) throw new Error('El documento supera el tamaño máximo permitido de 2 MB.');
+    const existing = db.prepare('SELECT id, created_by, revision FROM documents WHERE id = ?').get(id);
+    const timestamp = now();
+    if (existing) {
+      db.prepare(`
+        UPDATE documents
+        SET title = ?, template_id = ?, data_json = ?, updated_by = ?,
+          updated_at = ?, revision = revision + 1
+        WHERE id = ?
+      `).run(title, templateId, dataJson, actor.id, timestamp, id);
+      writeAudit(actor.id, 'update', 'document', id, { title, revision: existing.revision + 1 });
+    } else {
+      db.prepare(`
+        INSERT INTO documents(id, title, template_id, status, data_json, created_by, updated_by, created_at, updated_at, revision)
+        VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)
+      `).run(id, title, templateId, dataJson, actor.id, actor.id, timestamp, timestamp);
+      writeAudit(actor.id, 'create', 'document', id, { title, templateId });
+    }
+    const row = db.prepare(`
+      SELECT id, title, template_id AS templateId, status, data_json AS dataJson,
+        created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt,
+        updated_at AS updatedAt, revision
+      FROM documents WHERE id = ?
+    `).get(id);
+    return { ...row, ...JSON.parse(row.dataJson) };
+  });
+
   ipcMain.handle('settings:get', (_event, key) => {
     requireSession();
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
