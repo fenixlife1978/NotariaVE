@@ -485,9 +485,11 @@ function registerIpc() {
     if (password.length < 12 || password.length > 256) throw new Error('La contraseña debe tener entre 12 y 256 caracteres.');
     if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) throw new Error('Ya existe un usuario con ese nombre.');
     const id = randomUUID(), salt = randomBytes(16), hash = scryptSync(password, salt, 64), timestamp = now();
-    db.prepare('INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, username, fullName, role, salt, hash, timestamp, timestamp);
-    writeAudit(actor.id, 'user_created', 'user', id, { username, role });
+    db.transaction(() => {
+      db.prepare('INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(id, username, fullName, role, salt, hash, timestamp, timestamp);
+      writeAudit(actor.id, 'user_created', 'user', id, { username, role });
+    })();
     return { id, username, fullName, role, active: true };
   });
 
@@ -509,15 +511,17 @@ function registerIpc() {
       if (otherAdmins === 0) throw new Error('Debe existir al menos un administrador local activo.');
     }
     const timestamp = now();
-    if (password) {
-      const salt = randomBytes(16), hash = scryptSync(password, salt, 64);
-      db.prepare('UPDATE users SET role = ?, active = ?, full_name = COALESCE(?, full_name), password_salt = ?, password_hash = ?, updated_at = ? WHERE id = ?')
-        .run(role, active, fullName, salt, hash, timestamp, id);
-    } else {
-      db.prepare('UPDATE users SET role = ?, active = ?, full_name = COALESCE(?, full_name), updated_at = ? WHERE id = ?')
-        .run(role, active, fullName, timestamp, id);
-    }
-    writeAudit(actor.id, 'user_updated', 'user', id, { username: target.username, role, active: Boolean(active), passwordReset: Boolean(password) });
+    db.transaction(() => {
+      if (password) {
+        const salt = randomBytes(16), hash = scryptSync(password, salt, 64);
+        db.prepare('UPDATE users SET role = ?, active = ?, full_name = COALESCE(?, full_name), password_salt = ?, password_hash = ?, updated_at = ? WHERE id = ?')
+          .run(role, active, fullName, salt, hash, timestamp, id);
+      } else {
+        db.prepare('UPDATE users SET role = ?, active = ?, full_name = COALESCE(?, full_name), updated_at = ? WHERE id = ?')
+          .run(role, active, fullName, timestamp, id);
+      }
+      writeAudit(actor.id, 'user_updated', 'user', id, { username: target.username, role, active: Boolean(active), passwordReset: Boolean(password) });
+    })();
     return { updated: true };
   });
 
