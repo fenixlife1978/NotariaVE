@@ -34,19 +34,22 @@ export default function App() {
   const [lawyer, setLawyer] = useState<LawyerProfile>(INITIAL_LAWYER);
   const [criteria, setCriteria] = useState<SarenCriteriaConfig>(INITIAL_SAREN_CRITERIA);
   const [editorFormData, setEditorFormData] = useState<DocumentFormData | null>(null);
+  const [savedDocuments, setSavedDocuments] = useState<Array<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: any }>>([]);
 
   useEffect(() => {
     if (!currentUser) return;
     let cancelled = false;
     setIsLoadingData(true);
     (async () => {
-      const [storedClients, storedLawyer, storedCriteria] = await Promise.all([
+      const [storedClients, storedLawyer, storedCriteria, storedDocuments] = await Promise.all([
         window.notariaDesktop.listClients(),
         window.notariaDesktop.getSetting('lawyer_profile'),
         window.notariaDesktop.getSetting('saren_criteria'),
+        window.notariaDesktop.listDocuments(),
       ]);
       if (cancelled) return;
       setClients(storedClients as ClientParty[]);
+      setSavedDocuments(storedDocuments);
       setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
       setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
       if (!storedLawyer) await window.notariaDesktop.saveSetting('lawyer_profile', INITIAL_LAWYER);
@@ -54,6 +57,12 @@ export default function App() {
     })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
   }, [currentUser]);
+
+  const handleSaveDocument = async (input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }) => {
+    const saved = await window.notariaDesktop.saveDocument(input);
+    setSavedDocuments((previous) => [saved, ...previous.filter((item) => item.id !== saved.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+    return saved;
+  };
 
   const handleAddClient = async (newClient: ClientParty) => {
     const saved = await window.notariaDesktop.saveClient(newClient);
@@ -164,6 +173,8 @@ export default function App() {
             lawyer={lawyer}
             criteria={criteria}
             initialFormData={editorFormData}
+            savedDocuments={savedDocuments}
+            onSaveDocument={handleSaveDocument}
           />
         )}
 
