@@ -43,12 +43,35 @@ function writeAudit(actorId, action, entityType, entityId, details = {}) {
   `).run(actorId || null, action, entityType, entityId || null, JSON.stringify(details), now());
 }
 
+function handleIpc(channel, listener) {
+  ipcMain.handle(channel, (event, ...args) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) {
+      throw new Error('Solicitud IPC rechazada: emisor no autorizado.');
+    }
+    const frameUrl = event.senderFrame?.url || '';
+    let trusted = false;
+    if (app.isPackaged) {
+      const expected = pathToFileURL(path.resolve(__dirname, '..', 'dist', 'index.html')).href;
+      trusted = frameUrl === expected;
+    } else {
+      try {
+        const parsed = new URL(frameUrl);
+        trusted = parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1' && parsed.port === '5173';
+      } catch {
+        trusted = false;
+      }
+    }
+    if (!trusted) throw new Error('Solicitud IPC rechazada: origen no autorizado.');
+    return listener(event, ...args);
+  });
+}
+
 function registerIpc() {
-  ipcMain.handle('app:get-status', () => ({
+  handleIpc('app:get-status', () => ({
     needsInitialAdmin: db.prepare('SELECT COUNT(*) AS count FROM users').get().count === 0,
   }));
 
-  ipcMain.handle('auth:bootstrap-admin', (_event, input = {}) => {
+  handleIpc('auth:bootstrap-admin', (_event, input = {}) => {
     const count = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
     if (count !== 0) throw new Error('La configuración inicial ya fue completada.');
     const username = normalizeUsername(input.username);
@@ -69,7 +92,7 @@ function registerIpc() {
     return safeUser(db.prepare('SELECT * FROM users WHERE id = ?').get(id));
   });
 
-  ipcMain.handle('auth:login', (_event, input = {}) => {
+  handleIpc('auth:login', (_event, input = {}) => {
     const username = normalizeUsername(input.username);
     const password = String(input.password || '');
     if (!username || !password || username.length > 64 || password.length > 256) {
@@ -87,20 +110,20 @@ function registerIpc() {
     return safeUser(row);
   });
 
-  ipcMain.handle('auth:logout', () => {
+  handleIpc('auth:logout', () => {
     if (activeSession) writeAudit(activeSession.userId, 'logout', 'user', activeSession.userId);
     activeSession = null;
     pendingLegacyImport = null;
     return { success: true };
   });
 
-  ipcMain.handle('clients:list', () => {
+  handleIpc('clients:list', () => {
     requireSession();
     return db.prepare('SELECT id, full_name AS fullName, id_card_number AS idCardNumber, rif_number AS rifNumber, data_json AS dataJson, created_at AS createdAt, updated_at AS updatedAt FROM clients ORDER BY full_name COLLATE NOCASE').all()
       .map((row) => ({ ...row, ...JSON.parse(row.dataJson) }));
   });
 
-  ipcMain.handle('clients:save', (_event, client = {}) => {
+  handleIpc('clients:save', (_event, client = {}) => {
     const actor = requireRole('admin', 'abogado', 'asistente');
     const id = String(client.id || randomUUID()).slice(0, 80);
     const fullName = String(client.fullName || '').trim();
@@ -118,7 +141,7 @@ function registerIpc() {
     return data;
   });
 
-  ipcMain.handle('clients:delete', (_event, id) => {
+  handleIpc('clients:delete', (_event, id) => {
     const actor = requireRole('admin', 'abogado');
     const clientId = String(id || '');
     if (!clientId || clientId.length > 80) throw new Error('Identificador de cliente no válido.');
@@ -127,7 +150,7 @@ function registerIpc() {
     return { deleted: result.changes > 0 };
   });
 
-  ipcMain.handle('documents:list', () => {
+  handleIpc('documents:list', () => {
     requireSession();
     return db.prepare(`
       SELECT id, title, template_id AS templateId, status, data_json AS dataJson,
@@ -138,7 +161,7 @@ function registerIpc() {
     `).all().map((row) => ({ ...row, payload: JSON.parse(row.dataJson) }));
   });
 
-  ipcMain.handle('documents:save', (_event, input = {}) => {
+  handleIpc('documents:save', (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado', 'asistente');
     const id = String(input.id || randomUUID()).trim();
     const title = String(input.title || '').trim();
@@ -176,7 +199,7 @@ function registerIpc() {
     return { ...row, payload: JSON.parse(row.dataJson) };
   });
 
-  ipcMain.handle('attachments:list', (_event, input = {}) => {
+  handleIpc('attachments:list', (_event, input = {}) => {
     requireSession();
     const entityType = String(input.entityType || '');
     const entityId = String(input.entityId || '');
@@ -188,7 +211,7 @@ function registerIpc() {
     `).all(entityType, entityId);
   });
 
-  ipcMain.handle('attachments:add', async (_event, input = {}) => {
+  handleIpc('attachments:add', async (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado', 'asistente');
     const entityType = String(input.entityType || '');
     const entityId = String(input.entityId || '');
@@ -223,7 +246,7 @@ function registerIpc() {
     return { canceled: false, id, originalName, mimeType, sizeBytes: content.length, sha256, createdAt: timestamp };
   });
 
-  ipcMain.handle('attachments:export', async (_event, id) => {
+  handleIpc('attachments:export', async (_event, id) => {
     requireSession();
     const attachmentId = String(id || '');
     const row = db.prepare('SELECT original_name, content, sha256 FROM attachments WHERE id = ?').get(attachmentId);
@@ -236,7 +259,7 @@ function registerIpc() {
     return { canceled: false, fileName: path.basename(selection.filePath), sha256: actualHash };
   });
 
-  ipcMain.handle('attachments:delete', (_event, id) => {
+  handleIpc('attachments:delete', (_event, id) => {
     const actor = requireRole('admin', 'abogado');
     const attachmentId = String(id || '');
     const row = db.prepare('SELECT entity_type, entity_id, original_name FROM attachments WHERE id = ?').get(attachmentId);
@@ -246,7 +269,7 @@ function registerIpc() {
     return { deleted: true };
   });
 
-  ipcMain.handle('backup:create', async () => {
+  handleIpc('backup:create', async () => {
     const actor = requireAdmin();
     const suggestedName = `NotariaVE-respaldo-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`;
     const selection = await dialog.showSaveDialog(mainWindow, {
@@ -267,7 +290,7 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('backup:restore', async () => {
+  handleIpc('backup:restore', async () => {
     const actor = requireAdmin();
     const selection = await dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar respaldo verificado de NotariaVE',
@@ -352,7 +375,7 @@ function registerIpc() {
     }
   });
 
-  ipcMain.handle('legacy:select', async () => {
+  handleIpc('legacy:select', async () => {
     requireAdmin();
     pendingLegacyImport = null;
     const selection = await dialog.showOpenDialog(mainWindow, {
@@ -387,7 +410,7 @@ function registerIpc() {
     };
   });
 
-  ipcMain.handle('legacy:import', (_event, input = {}) => {
+  handleIpc('legacy:import', (_event, input = {}) => {
     const actor = requireAdmin();
     const token = String(input.token || '');
     const includeDemoRecords = input.includeDemoRecords === true;
@@ -467,13 +490,13 @@ function registerIpc() {
     return transaction();
   });
 
-  ipcMain.handle('users:list', () => {
+  handleIpc('users:list', () => {
     requireAdmin();
     return db.prepare('SELECT id, username, full_name AS fullName, role, active, created_at AS createdAt, updated_at AS updatedAt FROM users ORDER BY username COLLATE NOCASE').all()
       .map((row) => ({ ...row, active: row.active === 1 }));
   });
 
-  ipcMain.handle('users:create', (_event, input = {}) => {
+  handleIpc('users:create', (_event, input = {}) => {
     const actor = requireAdmin();
     const username = normalizeUsername(input.username);
     const fullName = String(input.fullName || '').trim();
@@ -493,7 +516,7 @@ function registerIpc() {
     return { id, username, fullName, role, active: true };
   });
 
-  ipcMain.handle('users:update', (_event, input = {}) => {
+  handleIpc('users:update', (_event, input = {}) => {
     const actor = requireAdmin();
     const id = String(input.id || '');
     const target = db.prepare('SELECT id, username, role, active FROM users WHERE id = ?').get(id);
@@ -525,7 +548,7 @@ function registerIpc() {
     return { updated: true };
   });
 
-  ipcMain.handle('settings:get', (_event, key) => {
+  handleIpc('settings:get', (_event, key) => {
     requireSession();
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
     if (!allowed.has(String(key))) throw new Error('Parámetro no permitido.');
@@ -533,7 +556,7 @@ function registerIpc() {
     return row ? JSON.parse(row.setting_value) : null;
   });
 
-  ipcMain.handle('settings:save', (_event, input = {}) => {
+  handleIpc('settings:save', (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado');
     const key = String(input.key || '');
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
