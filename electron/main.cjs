@@ -7,6 +7,8 @@ const { openDatabase } = require('./database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
 const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
+const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
+const os = require('node:os');
 const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 
 let mainWindow;
@@ -15,6 +17,22 @@ let activeSession = null;
 let databasePath;
 let userDataPath;
 let pendingLegacyImport = null;
+let installationId;
+
+const CRM_ACTIVATION_URL = 'https://crm-sicoven.vercel.app/api/activations';
+const CRM_PLANS_URL = 'https://crm-sicoven.vercel.app/comprar';
+const LICENSE_PRODUCT_CODE = 'NOTARIAVE_DESKTOP';
+
+function getInstallationId() {
+  const filePath = path.join(userDataPath, 'installation-id');
+  try {
+    const existing = fs.readFileSync(filePath, 'utf8').trim();
+    if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
+  } catch { /* First launch on this installation. */ }
+  const id = randomUUID();
+  fs.writeFileSync(filePath, id, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+  return id;
+}
 
 const now = () => new Date().toISOString();
 const normalizeUsername = (value) => String(value || '').trim().toLowerCase();
@@ -75,11 +93,38 @@ function handleIpc(channel, listener) {
 function registerIpc() {
   handleIpc('app:get-status', () => ({
     needsInitialAdmin: db.prepare('SELECT COUNT(*) AS count FROM users').get().count === 0,
+    license: getLicenseStatus(db),
   }));
 
+  handleIpc('license:get-status', () => getLicenseStatus(db));
+
+  handleIpc('license:activate', async (_event, input = {}) => {
+    const licenseKey = String(input.licenseKey || '').trim();
+    if (!licenseKey || licenseKey.length > 120 || !/^[a-zA-Z0-9-]+$/.test(licenseKey)) {
+      throw new Error('Ingrese una clave de licencia válida.');
+    }
+    const response = await fetch(CRM_ACTIVATION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Cache-Control': 'no-store' },
+      body: JSON.stringify({ licenseKey, productCode: LICENSE_PRODUCT_CODE, installationId,
+        deviceLabel: `${os.hostname()} · ${process.platform} ${process.arch}` }),
+      signal: AbortSignal.timeout(12000),
+    }).catch(() => { throw new Error('No fue posible conectar con CRM-Sicoven. Verifique internet e inténtelo nuevamente.'); });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok !== true || !payload.license || !payload.activation) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'CRM-Sicoven no pudo validar esta licencia.');
+    }
+    saveLicenseActivation(db, { licenseId: payload.license.id, activationId: payload.activation.id,
+      licenseName: payload.license.product || 'Licencia NotariaVE', offlineDays: payload.license.offlineDays });
+    return getLicenseStatus(db);
+  });
+
+  handleIpc('license:open-plans', async () => {
+    await shell.openExternal(CRM_PLANS_URL);
+    return { opened: true };
+  });
+
   handleIpc('auth:bootstrap-admin', (_event, input = {}) => {
-    const count = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
-    if (count !== 0) throw new Error('La configuración inicial ya fue completada.');
     const username = normalizeUsername(input.username);
     const fullName = String(input.fullName || '').trim();
     const password = String(input.password || '');
@@ -90,6 +135,8 @@ function registerIpc() {
     const hash = scryptSync(password, salt, 64);
     const id = randomUUID();
     db.transaction(() => {
+      const count = db.prepare('SELECT COUNT(*) AS count FROM users').get().count;
+      if (count !== 0) throw new Error('La configuración inicial ya fue completada.');
       db.prepare(`
         INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at)
         VALUES (?, ?, ?, 'admin', ?, ?, ?, ?)
@@ -659,6 +706,7 @@ app.whenReady().then(() => {
   const opened = openDatabase(userDataPath);
   db = opened.db;
   databasePath = opened.dbPath;
+  installationId = getInstallationId();
   registerIpc();
   createWindow();
   app.on('activate', () => {
