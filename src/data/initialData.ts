@@ -1,6 +1,8 @@
-import { LawyerProfile, SarenCriteriaConfig } from '../types/legal';
+import { ClientParty, LawyerProfile, SarenCriteriaConfig } from '../types/legal';
 
-// Valores de configuración no personales. Los datos profesionales reales se crean desde Configuración.
+// NotariaVE starts with an empty local directory. No sample identities or fictitious professional data.
+export const INITIAL_CLIENTS: ClientParty[] = [];
+
 export const INITIAL_LAWYER: LawyerProfile = {
   fullName: '',
   inpreabogado: '',
@@ -13,7 +15,7 @@ export const INITIAL_LAWYER: LawyerProfile = {
 
 export const INITIAL_SAREN_CRITERIA: SarenCriteriaConfig = {
   state: 'Distrito Capital',
-  municipality: 'Libertador',
+  municipality: '',
   officeType: 'Notaría Pública',
   officeName: '',
   topMarginMm: 40,
