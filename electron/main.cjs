@@ -83,12 +83,14 @@ function registerIpc() {
     const salt = randomBytes(16);
     const hash = scryptSync(password, salt, 64);
     const id = randomUUID();
-    db.prepare(`
-      INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at)
-      VALUES (?, ?, ?, 'admin', ?, ?, ?, ?)
-    `).run(id, username, fullName, salt, hash, now(), now());
+    db.transaction(() => {
+      db.prepare(`
+        INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at)
+        VALUES (?, ?, ?, 'admin', ?, ?, ?, ?)
+      `).run(id, username, fullName, salt, hash, now(), now());
+      writeAudit(id, 'bootstrap_admin', 'user', id, { username });
+    })();
     activeSession = { userId: id };
-    writeAudit(id, 'bootstrap_admin', 'user', id, { username });
     return safeUser(db.prepare('SELECT * FROM users WHERE id = ?').get(id));
   });
 
@@ -105,8 +107,8 @@ function registerIpc() {
       writeAudit(null, 'login_failed', 'user', row.id, { username });
       throw new Error('Usuario o contraseña incorrectos.');
     }
-    activeSession = { userId: row.id };
     writeAudit(row.id, 'login_success', 'user', row.id);
+    activeSession = { userId: row.id };
     return safeUser(row);
   });
 
@@ -130,14 +132,16 @@ function registerIpc() {
     if (fullName.length < 2 || fullName.length > 200) throw new Error('El nombre del cliente no es válido.');
     const data = { ...client, id, fullName };
     const timestamp = now();
-    db.prepare(`
-      INSERT INTO clients(id, full_name, id_card_number, rif_number, data_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET full_name=excluded.full_name,
-        id_card_number=excluded.id_card_number, rif_number=excluded.rif_number,
-        data_json=excluded.data_json, updated_at=excluded.updated_at
-    `).run(id, fullName, String(client.idCardNumber || ''), String(client.rifNumber || ''), JSON.stringify(data), timestamp, timestamp);
-    writeAudit(actor.id, 'save', 'client', id, { fullName });
+    db.transaction(() => {
+      db.prepare(`
+        INSERT INTO clients(id, full_name, id_card_number, rif_number, data_json, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET full_name=excluded.full_name,
+          id_card_number=excluded.id_card_number, rif_number=excluded.rif_number,
+          data_json=excluded.data_json, updated_at=excluded.updated_at
+      `).run(id, fullName, String(client.idCardNumber || ''), String(client.rifNumber || ''), JSON.stringify(data), timestamp, timestamp);
+      writeAudit(actor.id, 'save', 'client', id, { fullName });
+    })();
     return data;
   });
 
@@ -145,8 +149,13 @@ function registerIpc() {
     const actor = requireRole('admin', 'abogado');
     const clientId = String(id || '');
     if (!clientId || clientId.length > 80) throw new Error('Identificador de cliente no válido.');
-    const result = db.prepare('DELETE FROM clients WHERE id = ?').run(clientId);
-    if (result.changes) writeAudit(actor.id, 'delete', 'client', clientId);
+    const attachmentCount = db.prepare("SELECT COUNT(*) AS count FROM attachments WHERE entity_type = 'client' AND entity_id = ?").get(clientId).count;
+    if (attachmentCount > 0) throw new Error('No se puede eliminar el cliente mientras tenga adjuntos asociados. Elimine o exporte primero esos archivos.');
+    const result = db.transaction(() => {
+      const deleted = db.prepare('DELETE FROM clients WHERE id = ?').run(clientId);
+      if (deleted.changes) writeAudit(actor.id, 'delete', 'client', clientId);
+      return deleted;
+    })();
     return { deleted: result.changes > 0 };
   });
 
@@ -173,30 +182,32 @@ function registerIpc() {
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('El contenido del documento no es válido.');
     const dataJson = JSON.stringify(payload);
     if (Buffer.byteLength(dataJson, 'utf8') > 2_000_000) throw new Error('El documento supera el tamaño máximo permitido de 2 MB.');
-    const existing = db.prepare('SELECT id, created_by, revision FROM documents WHERE id = ?').get(id);
-    const timestamp = now();
-    if (existing) {
-      db.prepare(`
-        UPDATE documents
-        SET title = ?, template_id = ?, data_json = ?, updated_by = ?,
-          updated_at = ?, revision = revision + 1
-        WHERE id = ?
-      `).run(title, templateId, dataJson, actor.id, timestamp, id);
-      writeAudit(actor.id, 'update', 'document', id, { title, revision: existing.revision + 1 });
-    } else {
-      db.prepare(`
-        INSERT INTO documents(id, title, template_id, status, data_json, created_by, updated_by, created_at, updated_at, revision)
-        VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)
-      `).run(id, title, templateId, dataJson, actor.id, actor.id, timestamp, timestamp);
-      writeAudit(actor.id, 'create', 'document', id, { title, templateId });
-    }
-    const row = db.prepare(`
-      SELECT id, title, template_id AS templateId, status, data_json AS dataJson,
-        created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt,
-        updated_at AS updatedAt, revision
-      FROM documents WHERE id = ?
-    `).get(id);
-    return { ...row, payload: JSON.parse(row.dataJson) };
+    return db.transaction(() => {
+      const existing = db.prepare('SELECT id, created_by, revision FROM documents WHERE id = ?').get(id);
+      const timestamp = now();
+      if (existing) {
+        db.prepare(`
+          UPDATE documents
+          SET title = ?, template_id = ?, data_json = ?, updated_by = ?,
+            updated_at = ?, revision = revision + 1
+          WHERE id = ?
+        `).run(title, templateId, dataJson, actor.id, timestamp, id);
+        writeAudit(actor.id, 'update', 'document', id, { title, revision: existing.revision + 1 });
+      } else {
+        db.prepare(`
+          INSERT INTO documents(id, title, template_id, status, data_json, created_by, updated_by, created_at, updated_at, revision)
+          VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)
+        `).run(id, title, templateId, dataJson, actor.id, actor.id, timestamp, timestamp);
+        writeAudit(actor.id, 'create', 'document', id, { title, templateId });
+      }
+      const row = db.prepare(`
+        SELECT id, title, template_id AS templateId, status, data_json AS dataJson,
+          created_by AS createdBy, updated_by AS updatedBy, created_at AS createdAt,
+          updated_at AS updatedAt, revision
+        FROM documents WHERE id = ?
+      `).get(id);
+      return { ...row, payload: JSON.parse(row.dataJson) };
+    })();
   });
 
   handleIpc('attachments:list', (_event, input = {}) => {
@@ -238,11 +249,13 @@ function registerIpc() {
     const id = randomUUID();
     const sha256 = createHash('sha256').update(content).digest('hex');
     const timestamp = now();
-    db.prepare(`
-      INSERT INTO attachments(id, entity_type, entity_id, relative_path, original_name, mime_type, size_bytes, sha256, created_at, content)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, entityType, entityId, 'sqlite-blob:' + id, originalName, mimeType, content.length, sha256, timestamp, content);
-    writeAudit(actor.id, 'attachment_added', entityType, entityId, { attachmentId: id, originalName, sizeBytes: content.length, sha256 });
+    db.transaction(() => {
+      db.prepare(`
+        INSERT INTO attachments(id, entity_type, entity_id, relative_path, original_name, mime_type, size_bytes, sha256, created_at, content)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, entityType, entityId, 'sqlite-blob:' + id, originalName, mimeType, content.length, sha256, timestamp, content);
+      writeAudit(actor.id, 'attachment_added', entityType, entityId, { attachmentId: id, originalName, sizeBytes: content.length, sha256 });
+    })();
     return { canceled: false, id, originalName, mimeType, sizeBytes: content.length, sha256, createdAt: timestamp };
   });
 
@@ -264,8 +277,10 @@ function registerIpc() {
     const attachmentId = String(id || '');
     const row = db.prepare('SELECT entity_type, entity_id, original_name FROM attachments WHERE id = ?').get(attachmentId);
     if (!row) return { deleted: false };
-    db.prepare('DELETE FROM attachments WHERE id = ?').run(attachmentId);
-    writeAudit(actor.id, 'attachment_deleted', row.entity_type, row.entity_id, { attachmentId, originalName: row.original_name });
+    db.transaction(() => {
+      db.prepare('DELETE FROM attachments WHERE id = ?').run(attachmentId);
+      writeAudit(actor.id, 'attachment_deleted', row.entity_type, row.entity_id, { attachmentId, originalName: row.original_name });
+    })();
     return { deleted: true };
   });
 
@@ -563,11 +578,13 @@ function registerIpc() {
     if (!allowed.has(key)) throw new Error('Parámetro no permitido.');
     if (key === 'saren_criteria' && actor.role !== 'admin') throw new Error('Solo el administrador puede modificar los criterios generales SAREN.');
     const value = JSON.stringify(input.value ?? null);
-    db.prepare(`
-      INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
-    `).run(key, value, now());
-    writeAudit(actor.id, 'save', 'setting', key);
+    db.transaction(() => {
+      db.prepare(`
+        INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
+      `).run(key, value, now());
+      writeAudit(actor.id, 'save', 'setting', key);
+    })();
     return { saved: true };
   });
 }
