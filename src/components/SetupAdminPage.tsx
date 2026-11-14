@@ -7,7 +7,6 @@ interface Props {
 
 export const SetupAdminPage: React.FC<Props> = ({ onCreated }) => {
   const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +21,7 @@ export const SetupAdminPage: React.FC<Props> = ({ onCreated }) => {
     }
     setBusy(true);
     try {
-      const user = await window.notariaDesktop.bootstrapAdmin({ username, fullName, password });
+      const user = await window.notariaDesktop.bootstrapAdmin({ username, fullName: username.trim(), password });
       onCreated(user);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible crear el administrador local.');
@@ -41,11 +40,8 @@ export const SetupAdminPage: React.FC<Props> = ({ onCreated }) => {
             <p className="text-xs text-slate-400">Administrador local de NotariaVE</p>
           </div>
         </div>
-        <p className="text-sm text-slate-300">Cree la primera cuenta administradora. Las credenciales se verificarán exclusivamente contra la base SQLite de este equipo.</p>
+        <p className="text-sm text-slate-300">Cree el usuario y la contraseña del primer administrador. Las credenciales se verificarán exclusivamente contra la base SQLite de este equipo.</p>
         {error && <div role="alert" className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300 flex gap-2"><AlertCircle className="w-4 h-4 shrink-0" />{error}</div>}
-        <label className="block text-xs font-semibold text-slate-300">Nombre completo
-          <input required minLength={3} maxLength={120} value={fullName} onChange={e => setFullName(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
-        </label>
         <label className="block text-xs font-semibold text-slate-300">Usuario local
           <span className="relative block mt-1"><UserRound className="absolute left-3 top-3 h-4 w-4 text-slate-500" /><input required minLength={3} maxLength={64} pattern="[A-Za-z0-9._-]+" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2 pl-10 pr-3 text-white" /></span>
         </label>
