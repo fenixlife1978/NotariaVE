@@ -7,6 +7,7 @@ const { openDatabase } = require('./database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
 const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
+const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 
 let mainWindow;
 let db;
@@ -35,7 +36,7 @@ function requireSession() {
 
 function requireRole(...roles) {
   const user = requireSession();
-  if (!roles.includes(user.role)) throw new Error('Su perfil no tiene permiso para realizar esta operación.');
+  assertRoleAllowed(user.role, roles);
   return user;
 }
 
@@ -526,7 +527,7 @@ function registerIpc() {
     const password = String(input.password || '');
     if (!/^[a-z0-9._-]{3,64}$/.test(username)) throw new Error('El usuario debe tener entre 3 y 64 caracteres válidos.');
     if (fullName.length < 3 || fullName.length > 120) throw new Error('Indique un nombre completo válido.');
-    if (!['admin', 'abogado', 'asistente', 'consulta'].includes(role)) throw new Error('Perfil de usuario no permitido.');
+    assertValidRole(role);
     if (password.length < 12 || password.length > 256) throw new Error('La contraseña debe tener entre 12 y 256 caracteres.');
     if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) throw new Error('Ya existe un usuario con ese nombre.');
     const id = randomUUID(), salt = randomBytes(16), hash = scryptSync(password, salt, 64), timestamp = now();
@@ -547,14 +548,13 @@ function registerIpc() {
     const active = input.active === undefined ? target.active : (input.active ? 1 : 0);
     const fullName = input.fullName === undefined ? null : String(input.fullName).trim();
     const password = input.password === undefined ? '' : String(input.password);
-    if (!['admin', 'abogado', 'asistente', 'consulta'].includes(role)) throw new Error('Perfil de usuario no permitido.');
+    assertValidRole(role);
     if (fullName !== null && (fullName.length < 3 || fullName.length > 120)) throw new Error('Nombre completo no válido.');
     if (password && (password.length < 12 || password.length > 256)) throw new Error('La nueva contraseña debe tener entre 12 y 256 caracteres.');
-    if (id === actor.id && (active !== 1 || role !== 'admin')) throw new Error('No puede desactivar ni quitarse el perfil administrador durante su propia sesión.');
-    if (target.role === 'admin' && (active !== 1 || role !== 'admin')) {
-      const otherAdmins = db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1 AND id <> ?").get(id).count;
-      if (otherAdmins === 0) throw new Error('Debe existir al menos un administrador local activo.');
-    }
+    const otherAdmins = target.role === 'admin' && (active !== 1 || role !== 'admin')
+      ? db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1 AND id <> ?").get(id).count
+      : 0;
+    assertAdminRemainsActive({ actorId: actor.id, targetId: id, targetRole: target.role, nextRole: role, nextActive: active, otherActiveAdmins: otherAdmins });
     const timestamp = now();
     db.transaction(() => {
       if (password) {
