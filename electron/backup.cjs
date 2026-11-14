@@ -23,11 +23,13 @@ function inspectDatabase(filePath, DatabaseCtor = Database) {
     }
     const schemaVersion = candidate.prepare('SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations').get().version;
     if (schemaVersion < 2) throw new Error('La versión del esquema del respaldo no es compatible.');
+    const activeAdminCount = candidate.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1").get().count;
+    if (activeAdminCount < 1) throw new Error('El respaldo no contiene un administrador local activo.');
     const counts = {};
     for (const table of ['users', 'clients', 'documents', 'audit_log', 'attachments', 'external_lookups']) {
       counts[table] = tables.has(table) ? candidate.prepare(`SELECT COUNT(*) AS count FROM "${table}"`).get().count : 0;
     }
-    return { schemaVersion, counts };
+    return { schemaVersion, counts, activeAdminCount };
   } finally {
     candidate.close();
   }
