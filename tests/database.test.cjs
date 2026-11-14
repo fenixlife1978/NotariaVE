@@ -26,7 +26,10 @@ test('creates an isolated local SQLite schema with foreign keys enabled', () => 
     assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
     assert.equal(db.pragma('journal_mode', { simple: true }), 'wal');
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
-    assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 1);
+    assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 2);
+    const documentColumns = db.prepare('PRAGMA table_info(documents)').all().map((column) => column.name);
+    assert.ok(documentColumns.includes('updated_by'));
+    assert.ok(documentColumns.includes('revision'));
   });
 });
 
@@ -37,7 +40,7 @@ test('keeps the schema migration idempotent across reopen', () => {
     first.db.close();
     const second = openDatabase(dir);
     try {
-      assert.equal(second.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 1);
+      assert.equal(second.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 2);
       assert.equal(second.db.pragma('quick_check')[0].quick_check, 'ok');
     } finally {
       second.db.close();
@@ -45,4 +48,27 @@ test('keeps the schema migration idempotent across reopen', () => {
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('persists document payloads with revision metadata and audit references', () => {
+  withTempDatabase((db) => {
+    const now = new Date().toISOString();
+    const userId = 'test-admin';
+    db.prepare(`
+      INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at)
+      VALUES (?, ?, ?, 'admin', ?, ?, ?, ?)
+    `).run(userId, 'admin', 'Administrador de prueba', Buffer.alloc(16), Buffer.alloc(64), now, now);
+    const payload = JSON.stringify({ formData: { title: 'PODER ESPECIAL' }, customDraftText: 'Borrador de prueba' });
+    db.prepare(`
+      INSERT INTO documents(id, title, template_id, status, data_json, created_by, updated_by, created_at, updated_at, revision)
+      VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, 1)
+    `).run('doc-1', 'PODER ESPECIAL', 'poder-especial', payload, userId, userId, now, now);
+    const saved = db.prepare('SELECT title, data_json, revision, created_by FROM documents WHERE id = ?').get('doc-1');
+    assert.equal(saved.title, 'PODER ESPECIAL');
+    assert.equal(JSON.parse(saved.data_json).customDraftText, 'Borrador de prueba');
+    assert.equal(saved.revision, 1);
+    assert.equal(saved.created_by, userId);
+    db.prepare('UPDATE documents SET revision = revision + 1 WHERE id = ?').run('doc-1');
+    assert.equal(db.prepare('SELECT revision FROM documents WHERE id = ?').get('doc-1').revision, 2);
+  });
 });
