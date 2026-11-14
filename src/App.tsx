@@ -11,11 +11,7 @@ import { DocumentEditor } from './components/DocumentEditor';
 import { FeeCalculatorView } from './components/FeeCalculatorView';
 import { ClientDirectory } from './components/ClientDirectory';
 import { SarenSettingsView } from './components/SarenSettingsModal';
-import {
-  INITIAL_CLIENTS,
-  INITIAL_LAWYER,
-  INITIAL_SAREN_CRITERIA,
-} from './data/initialData';
+import { INITIAL_LAWYER, INITIAL_SAREN_CRITERIA } from './data/initialData';
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
 export default function App() {
@@ -33,69 +29,53 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings'>('editor');
 
-  // Persistence in localStorage
-  const [clients, setClients] = useState<ClientParty[]>(() => {
-    const saved = localStorage.getItem('notariadoc_clients');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_CLIENTS;
-  });
-
-  const [lawyer, setLawyer] = useState<LawyerProfile>(() => {
-    const saved = localStorage.getItem('notariadoc_lawyer');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_LAWYER;
-  });
-
-  const [criteria, setCriteria] = useState<SarenCriteriaConfig>(() => {
-    const saved = localStorage.getItem('notariadoc_criteria');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_SAREN_CRITERIA;
-  });
-
-  // Active form data to pass to editor
+  const [clients, setClients] = useState<ClientParty[]>([]);
+  const [lawyer, setLawyer] = useState<LawyerProfile>(INITIAL_LAWYER);
+  const [criteria, setCriteria] = useState<SarenCriteriaConfig>(INITIAL_SAREN_CRITERIA);
   const [editorFormData, setEditorFormData] = useState<DocumentFormData | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('notariadoc_clients', JSON.stringify(clients));
-  }, [clients]);
+    if (!currentUser) return;
+    let cancelled = false;
+    (async () => {
+      const [storedClients, storedLawyer, storedCriteria] = await Promise.all([
+        window.notariaDesktop.listClients(),
+        window.notariaDesktop.getSetting('lawyer_profile'),
+        window.notariaDesktop.getSetting('saren_criteria'),
+      ]);
+      if (cancelled) return;
+      setClients(storedClients as ClientParty[]);
+      setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
+      setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
+      if (!storedLawyer) await window.notariaDesktop.saveSetting('lawyer_profile', INITIAL_LAWYER);
+      if (!storedCriteria) await window.notariaDesktop.saveSetting('saren_criteria', INITIAL_SAREN_CRITERIA);
+    })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.'));
+    return () => { cancelled = true; };
+  }, [currentUser]);
 
-  useEffect(() => {
-    localStorage.setItem('notariadoc_lawyer', JSON.stringify(lawyer));
-  }, [lawyer]);
-
-  useEffect(() => {
-    localStorage.setItem('notariadoc_criteria', JSON.stringify(criteria));
-  }, [criteria]);
-
-  // Client Directory Handlers
-  const handleAddClient = (newClient: ClientParty) => {
-    setClients((prev) => [newClient, ...prev]);
+  const handleAddClient = async (newClient: ClientParty) => {
+    const saved = await window.notariaDesktop.saveClient(newClient);
+    setClients((prev) => [saved as ClientParty, ...prev]);
   };
 
-  const handleUpdateClient = (updatedClient: ClientParty) => {
-    setClients((prev) => prev.map((c) => (c.id === updatedClient.id ? updatedClient : c)));
+  const handleUpdateClient = async (updatedClient: ClientParty) => {
+    const saved = await window.notariaDesktop.saveClient(updatedClient);
+    setClients((prev) => prev.map((client) => client.id === updatedClient.id ? saved as ClientParty : client));
   };
 
-  const handleDeleteClient = (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+  const handleDeleteClient = async (id: string) => {
+    await window.notariaDesktop.deleteClient(id);
+    setClients((prev) => prev.filter((client) => client.id !== id));
+  };
+
+  const handleUpdateLawyer = async (updated: LawyerProfile) => {
+    await window.notariaDesktop.saveSetting('lawyer_profile', updated);
+    setLawyer(updated);
+  };
+
+  const handleUpdateCriteria = async (updated: SarenCriteriaConfig) => {
+    await window.notariaDesktop.saveSetting('saren_criteria', updated);
+    setCriteria(updated);
   };
 
   // 1-Click transfer from Client Directory to Document
@@ -141,7 +121,7 @@ export default function App() {
   };
 
   const handleUpdateBcvRate = (rate: number) => {
-    setCriteria((prev) => ({ ...prev, bcvRate: rate }));
+    void handleUpdateCriteria({ ...criteria, bcvRate: rate });
   };
 
   const handleLogin = (user: { username: string; role: string; fullName: string }) => {
@@ -204,9 +184,9 @@ export default function App() {
         {activeTab === 'settings' && (
           <SarenSettingsView
             criteria={criteria}
-            onUpdateCriteria={setCriteria}
+            onUpdateCriteria={handleUpdateCriteria}
             lawyer={lawyer}
-            onUpdateLawyer={setLawyer}
+            onUpdateLawyer={handleUpdateLawyer}
           />
         )}
       </main>
