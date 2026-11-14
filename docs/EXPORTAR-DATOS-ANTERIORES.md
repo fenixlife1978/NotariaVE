@@ -36,7 +36,7 @@ Esta guía permite trasladar los datos guardados por la versión web anterior al
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
   console.info('Exportación local preparada. Conserve el archivo JSON.');
 })();
 ```
@@ -49,14 +49,15 @@ El archivo contiene únicamente clientes, perfil profesional y criterios SAREN. 
 2. Entre en **Criterios Notariales SAREN / Configuración**.
 3. En **Migrar datos del NotariaVE anterior**, seleccione el archivo JSON descargado.
 4. Revise la cantidad de clientes, perfil y criterios detectados.
-5. Confirme la importación solo después de revisar el resumen.
+5. Revise si el sistema detectó datos de demostración. Puede dejarlos excluidos (recomendado) o marcar expresamente la casilla para incluirlos si reconoce que los modificó y contienen información suya.
+6. Confirme la importación solo después de revisar el resumen.
 
 ## 3. Qué hace la importación
 
 - Inserta clientes que no estén duplicados por identificador, cédula o RIF.
 - No sobrescribe clientes locales existentes.
 - Importa el perfil profesional y los criterios SAREN del archivo si existen; estos dos ajustes sí sustituyen los valores locales actuales después de la confirmación.
-- Omite los registros de demostración conocidos que venían precargados en la versión anterior.
+- Omite los registros de demostración conocidos que venían precargados en la versión anterior, salvo que usted marque expresamente la opción para incluirlos.
 - No importa la sesión ni contraseñas anteriores.
 - No elimina registros de la base SQLite.
 - Ejecuta la importación en una transacción y registra el resumen en la bitácora local.
