@@ -189,7 +189,7 @@ export default function App() {
   if (desktopError) {
     return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center p-6"><div className="max-w-lg text-center"><h1 className="text-xl font-bold">No se pudo iniciar NotariaVE</h1><p className="mt-3 text-sm text-rose-300">{desktopError}</p><p className="mt-2 text-sm text-slate-400">La aplicación requiere su entorno de escritorio y su base SQLite local. No se intentará conectar a ningún servicio remoto.</p></div></main>;
   }
-  if (needsInitialAdmin) return <SetupAdminPage onCreated={handleLogin} />;
+  if (needsInitialAdmin) return <SetupAdminPage onCreated={() => { setNeedsInitialAdmin(false); setCurrentUser(null); }} />;
   if (!licenseStatus) return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Comprobando licencia local…</main>;
   if (showLicenseGate || !licenseStatus.allowed) return <LicenseGate status={licenseStatus} onContinue={() => setShowLicenseGate(false)} onActivated={(status) => { setLicenseStatus(status); setShowLicenseGate(false); }} />;
   if (!currentUser) return <LoginPage onLogin={handleLogin} />;
