@@ -19,6 +19,7 @@ export default function App() {
   const [needsInitialAdmin, setNeedsInitialAdmin] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [desktopError, setDesktopError] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
     window.notariaDesktop.getStatus()
@@ -37,6 +38,7 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     let cancelled = false;
+    setIsLoadingData(true);
     (async () => {
       const [storedClients, storedLawyer, storedCriteria] = await Promise.all([
         window.notariaDesktop.listClients(),
@@ -49,7 +51,7 @@ export default function App() {
       setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
       if (!storedLawyer) await window.notariaDesktop.saveSetting('lawyer_profile', INITIAL_LAWYER);
       if (!storedCriteria) await window.notariaDesktop.saveSetting('saren_criteria', INITIAL_SAREN_CRITERIA);
-    })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.'));
+    })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
   }, [currentUser]);
 
@@ -142,6 +144,7 @@ export default function App() {
   }
   if (needsInitialAdmin) return <SetupAdminPage onCreated={handleLogin} />;
   if (!currentUser) return <LoginPage onLogin={handleLogin} />;
+  if (isLoadingData) return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Cargando datos desde SQLite local…</main>;
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
