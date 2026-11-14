@@ -129,6 +129,10 @@ export const SarenComplianceModal: React.FC<SarenComplianceModalProps> = ({
                 </div>
               </div>
 
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-200">
+                Esta es una revisión heurística local basada en reglas internas. No constituye dictamen oficial del SAREN, no certifica vigencia normativa y no garantiza aceptación del documento. Verifique siempre las fuentes y recaudos de la oficina competente.
+              </div>
+
               {/* Rules Checklist */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
