@@ -67,7 +67,7 @@ export const LegacyImportManager: React.FC<{ onImported: () => Promise<void> }> 
             <div className="rounded bg-slate-50 dark:bg-slate-950 p-2"><strong>{preview.hasCriteria ? 'Sí' : 'No'}</strong><span className="block text-slate-500">Criterios SAREN</span></div>
             <div className="rounded bg-slate-50 dark:bg-slate-950 p-2"><strong>{preview.suspectedDemoClients}</strong><span className="block text-slate-500">Clientes demo detectados</span></div>
           </div>
-          {(preview.suspectedDemoClients > 0 || preview.suspectedDemoLawyer || preview.suspectedDemoCriteria) && <p className="text-xs text-amber-700 dark:text-amber-300 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Se detectaron valores de demostración conocidos; se omitirán para no incorporarlos como datos profesionales.</p>}
+          {(preview.suspectedDemoClients > 0 || preview.suspectedDemoLawyer || preview.suspectedDemoCriteria) && <p className="text-xs text-amber-700 dark:text-amber-300 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Se detectaron valores de demostración conocidos; {includeDemoRecords ? 'se incluirán porque usted lo autorizó.' : 'se omitirán para no incorporarlos como datos profesionales.'}</p>}
           <p className="text-[11px] text-slate-500">Los clientes duplicados se omiten sin sobrescribir los registros locales. Los datos nuevos se importan en una transacción SQLite y quedan registrados en la auditoría.</p>
           {(preview.suspectedDemoClients > 0 || preview.suspectedDemoLawyer || preview.suspectedDemoCriteria) && (
             <label className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
