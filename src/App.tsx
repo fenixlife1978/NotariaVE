@@ -11,6 +11,7 @@ import { DocumentEditor } from './components/DocumentEditor';
 import { FeeCalculatorView } from './components/FeeCalculatorView';
 import { ClientDirectory } from './components/ClientDirectory';
 import { SarenSettingsView } from './components/SarenSettingsModal';
+import { BackupManager } from './components/BackupManager';
 import { INITIAL_LAWYER, INITIAL_SAREN_CRITERIA } from './data/initialData';
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
@@ -205,6 +206,9 @@ export default function App() {
             lawyer={lawyer}
             onUpdateLawyer={handleUpdateLawyer}
           />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+            <BackupManager />
+          </div>
         )}
       </main>
 
