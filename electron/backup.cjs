@@ -57,16 +57,35 @@ async function createVerifiedBackup(sourceDb, destinationPath, DatabaseCtor = Da
       ...inspection,
     };
     fs.writeFileSync(temporaryManifest, JSON.stringify(manifest, null, 2), { flag: 'wx' });
-    if (fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
-    if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
-    fs.renameSync(temporaryPath, destinationPath);
-    installedDatabase = true;
-    fs.renameSync(temporaryManifest, manifestPath);
-    return { filePath: destinationPath, fileName: path.basename(destinationPath), manifestPath, ...manifest };
+    const displacedDatabase = `${destinationPath}.previous-${crypto.randomUUID()}`;
+    const displacedManifest = `${manifestPath}.previous-${crypto.randomUUID()}`;
+    let movedPreviousDatabase = false;
+    let movedPreviousManifest = false;
+    try {
+      if (fs.existsSync(destinationPath)) {
+        fs.renameSync(destinationPath, displacedDatabase);
+        movedPreviousDatabase = true;
+      }
+      if (fs.existsSync(manifestPath)) {
+        fs.renameSync(manifestPath, displacedManifest);
+        movedPreviousManifest = true;
+      }
+      fs.renameSync(temporaryPath, destinationPath);
+      installedDatabase = true;
+      fs.renameSync(temporaryManifest, manifestPath);
+      if (movedPreviousDatabase && fs.existsSync(displacedDatabase)) fs.unlinkSync(displacedDatabase);
+      if (movedPreviousManifest && fs.existsSync(displacedManifest)) fs.unlinkSync(displacedManifest);
+      return { filePath: destinationPath, fileName: path.basename(destinationPath), manifestPath, ...manifest };
+    } catch (installError) {
+      if (installedDatabase && fs.existsSync(destinationPath)) fs.unlinkSync(destinationPath);
+      if (fs.existsSync(manifestPath)) fs.unlinkSync(manifestPath);
+      if (movedPreviousDatabase && fs.existsSync(displacedDatabase)) fs.renameSync(displacedDatabase, destinationPath);
+      if (movedPreviousManifest && fs.existsSync(displacedManifest)) fs.renameSync(displacedManifest, manifestPath);
+      throw installError;
+    }
   } catch (error) {
     if (fs.existsSync(temporaryPath)) fs.unlinkSync(temporaryPath);
     if (fs.existsSync(temporaryManifest)) fs.unlinkSync(temporaryManifest);
-    if (installedDatabase && fs.existsSync(destinationPath) && !fs.existsSync(manifestPath)) fs.unlinkSync(destinationPath);
     throw error;
   }
 }
