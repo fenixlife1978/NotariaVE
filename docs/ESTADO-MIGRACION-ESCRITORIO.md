@@ -29,6 +29,17 @@ Revisión: PR #1 en borrador. No fusionar todavía.
 - Se desactivaron las llamadas Gemini y se retiró Express/Gemini del runtime. Google Fonts también fue eliminado.
 - Copias y migración están reservadas al administrador local.
 
+
+## Primer administrador y licenciamiento CRM-Sicoven
+
+- En una base SQLite nueva, el arranque detecta que no existe ningún usuario y muestra la configuración inicial. El primer administrador crea su propio usuario y contraseña (mínimo 12 caracteres); no hay credenciales universales. La comprobación de que no existe otro usuario se ejecuta dentro de la misma transacción que crea la cuenta y su evento de auditoría.
+- En la primera ejecución, el motor local inicia una prueba de 120 horas (5 días) y conserva inicio/última hora observada en `app_settings`. La prueba no se reinicia al cerrar/abrir la aplicación; un retroceso significativo del reloj local bloquea la prueba y requiere activar/revalidar.
+- La pantalla de licencia permite continuar durante la prueba, introducir una clave y pulsar **Ver planes**, que abre el portal comercial CRM-Sicoven (`https://crm-sicoven.vercel.app/comprar`). No se configura ninguna URL de descarga.
+- La activación se solicita al endpoint `https://crm-sicoven.vercel.app/api/activations` con la clave, el código de producto `NOTARIAVE_DESKTOP`, un identificador aleatorio de instalación y una etiqueta genérica del equipo. No se envían expedientes, clientes, adjuntos ni contraseñas de usuario. La clave no se conserva en SQLite.
+- CRM-Sicoven debe tener creado y activo el producto con código exacto `NOTARIAVE_DESKTOP`, además de sus planes comerciales de NotariaVE. El código de activación ya está integrado en el cliente; la configuración del producto/planes y la verificación de compra/emisión de claves son dependencias del CRM y deben comprobarse antes de anunciar ventas.
+- La respuesta de CRM concede el período offline que indique la licencia (entre 1 y 30 días, con 7 como valor por defecto del servicio). Vencido ese período, se exige revalidación online. La licencia y la prueba no alteran ni eliminan expedientes, usuarios, adjuntos ni respaldos SQLite.
+- Las pruebas automatizadas cubren duración exacta de 120 horas, vencimiento, resistencia a retroceso del reloj y tolerancia offline de licencia. La integración todavía debe pasar CI y una prueba real contra CRM-Sicoven con una clave de NotariaVE.
+
 ## Validación ejecutada
 
 - GitHub Actions, ejecución `43643622165`, commit `d044c6a8d46633d0a4a090d9ce5ff5ef3d08294f`, terminó con ambos jobs en **success**:
