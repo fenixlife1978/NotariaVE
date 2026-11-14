@@ -18,7 +18,7 @@ export const LegacyImportManager: React.FC<{ onImported: () => Promise<void> }> 
   const [error, setError] = useState('');
 
   const selectFile = async () => {
-    setBusy(true); setError(''); setMessage('');
+    setBusy(true); setError(''); setMessage(''); setPreview(null);
     try {
       const result = await window.notariaDesktop.selectLegacyImport();
       if (!result.canceled && result.token && result.fileName) {
