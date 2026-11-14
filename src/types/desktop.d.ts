@@ -21,6 +21,10 @@ declare global {
       listUsers(): Promise<Array<{ id: string; username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; active: boolean; createdAt: string; updatedAt: string }>>;
       createUser(input: { username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; password: string }): Promise<{ id: string; username: string; fullName: string; role: string; active: boolean }>;
       updateUser(input: { id: string; role?: 'admin' | 'abogado' | 'asistente' | 'consulta'; active?: boolean; fullName?: string; password?: string }): Promise<{ updated: boolean }>;
+      listAttachments(input: { entityType: 'document' | 'client'; entityId: string }): Promise<Array<{ id: string; entityType: string; entityId: string; originalName: string; mimeType: string; sizeBytes: number; sha256: string; createdAt: string }>>;
+      addAttachment(input: { entityType: 'document' | 'client'; entityId: string }): Promise<{ canceled: boolean; id?: string; originalName?: string; mimeType?: string; sizeBytes?: number; sha256?: string; createdAt?: string }>;
+      exportAttachment(id: string): Promise<{ canceled: boolean; fileName?: string; sha256?: string }>;
+      deleteAttachment(id: string): Promise<{ deleted: boolean }>;
     };
   }
 }
