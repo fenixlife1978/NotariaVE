@@ -14,6 +14,9 @@ PR de revisión: #1 (borrador; no fusionar)
 - Primer administrador local; contraseña con scrypt y sal aleatoria; login verificado en SQLite; sesión en memoria, sin persistirla en el renderer.
 - Clientes, perfil profesional y criterios SAREN ya leen/escriben a través de IPC SQLite.
 - Expedientes/documentos: guardado y reapertura en SQLite, búsqueda por título y comparecientes, persistencia del formulario completo y texto editado, contador de revisiones y auditoría de creación/modificación.
+- Respaldos: copia SQLite verificada, manifiesto SHA-256, comprobaciones `quick_check`/`foreign_key_check`, conteos de tablas y validación de administrador activo. Restauración con copia automática previa, reemplazo controlado y recuperación del archivo anterior si falla la apertura.
+- Migración de la versión web: exportación JSON local de clientes/perfil/criterios, previsualización antes de importar, deduplicación por ID/cédula/RIF, omisión de datos demo conocidos con opción explícita para incluirlos, importación transaccional y auditoría. La sesión antigua no se importa.
+- Datos iniciales: eliminados los clientes y perfil profesional ficticios; el perfil y criterios empiezan vacíos, sin tasa BCV ficticia.
 - Respaldos SQLite: copia consistente mediante API de backup de SQLite, verificación `quick_check` y `foreign_key_check`, manifiesto lateral con SHA-256 y conteos; restauración con validación previa y copia de seguridad automática del estado actual antes del reemplazo.
 - Eliminados datos de ejemplo de clientes y perfil profesional; el formulario documental ya no precarga identificaciones, domicilios, vehículos ni inmuebles ficticios.
 - Retiradas llamadas Gemini del runtime de escritorio; botones de IA deshabilitados mientras no exista consentimiento explícito.
@@ -24,12 +27,13 @@ PR de revisión: #1 (borrador; no fusionar)
 
 ## Pendiente — bloquea la aprobación
 
-1. Completar CI: una ejecución reciente instaló dependencias y pasó las 3 pruebas SQLite, pero TypeScript falló por tipos de registros de clientes y payload de documentos. Se corrigieron esos tipos; falta una nueva ejecución confirmatoria y build Vite.
+1. CI anterior: 4 pruebas SQLite, TypeScript y build Vite pasaron; el job Windows también generó un instalador NSIS y subió un artefacto. Ese artefacto corresponde a un commit anterior a la última incorporación del importador legado. La validación de los cambios de importación y las últimas pruebas de backup está pendiente.
 2. Validar el ciclo de documentos en la aplicación Electron real: crear, guardar, cerrar, volver a abrir, editar y verificar el incremento de revisión. La capa IPC y la interfaz ya están implementadas; falta prueba funcional de escritorio.
 3. Gestión de usuarios adicionales, cambio/reset de contraseña, roles y permisos efectivos.
-4. Adjuntos locales con escritura atómica, hashes y recuperación.
+4. Adjuntos locales (idealmente BLOB SQLite para que entren en los respaldos) con hashes y recuperación.
 5. Probar en Electron real el flujo de backup/restauración, incluyendo restauración interrumpida y recuperación del archivo original.
-6. Importador de datos previos del navegador con exportación, previsualización, deduplicación y confirmación; nunca importar datos de demostración.
+6. Probar importación real desde la exportación del navegador anterior y verificar registros de usuario; la versión web anterior no guardaba los borradores del editor en localStorage.
+6. Verificar importación real de datos previos del navegador con exportación, previsualización, deduplicación y confirmación; nunca importar datos de demostración sin consentimiento explícito.
 7. Migraciones futuras con backup previo y rollback.
 8. Consultas optativas BCV/SAREN con fuente, fecha, caché local, expiración y consentimiento; ninguna consulta debe bloquear operaciones.
 9. Revisión de cada regla tarifaria, ordenanza y referencia legal. El estimador se marca no oficial y no debe utilizarse como liquidación legal definitiva.
@@ -45,4 +49,4 @@ PR de revisión: #1 (borrador; no fusionar)
 
 ## Dictamen de fase
 
-**Base técnica iniciada; producto todavía no apto para producción.** Ya existe el esqueleto de escritorio y la primera capa SQLite/autenticación/clientes/configuración, pero faltan gestión de usuarios/roles, adjuntos, importación de datos previos y pruebas reales de distribución; los flujos nuevos de documentos y respaldo todavía requieren validación funcional en Electron/Windows. No publicar ni fusionar todavía.
+**Base técnica iniciada; producto todavía no apto para producción.** Ya existe el esqueleto de escritorio y la primera capa SQLite/autenticación/clientes/configuración, pero faltan gestión de usuarios/roles, adjuntos, prueba real de importación y restauración en Electron, y pruebas manuales de distribución Windows; los flujos nuevos de documentos y respaldo requieren validación funcional en escritorio. No publicar ni fusionar todavía.
