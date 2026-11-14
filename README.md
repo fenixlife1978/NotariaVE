@@ -27,7 +27,7 @@ El instalador Windows NSIS se genera en `release/`.
 
 ## Datos locales
 
-La aplicación crea su base en el directorio de datos de usuario administrado por Electron, dentro de `data/notariave.sqlite`. No se guarda dentro de la carpeta de instalación. La primera ejecución solicita crear un administrador local; las contraseñas se verifican con hashes scrypt y las sesiones no se guardan en el navegador.
+La aplicación crea su base en el directorio de datos de usuario administrado por Electron, dentro de `data/notariave.sqlite`. No se guarda dentro de la carpeta de instalación. La primera ejecución solicita crear el usuario y contraseña del administrador local; las contraseñas se verifican con hashes scrypt y las sesiones no se guardan en el navegador. Al primer inicio comienza una prueba local de 120 horas (5 días). El botón «Ver planes» abre el portal comercial CRM-Sicoven; la activación se valida online y permite el período offline definido por CRM. Los datos notariales permanecen en SQLite.
 
 ## Principios
 
