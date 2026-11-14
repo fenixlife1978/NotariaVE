@@ -120,7 +120,7 @@ function registerIpc() {
         updated_at AS updatedAt, revision
       FROM documents
       ORDER BY updated_at DESC
-    `).all().map((row) => ({ ...row, ...JSON.parse(row.dataJson) }));
+    `).all().map((row) => ({ ...row, payload: JSON.parse(row.dataJson) }));
   });
 
   ipcMain.handle('documents:save', (_event, input = {}) => {
@@ -158,7 +158,7 @@ function registerIpc() {
         updated_at AS updatedAt, revision
       FROM documents WHERE id = ?
     `).get(id);
-    return { ...row, ...JSON.parse(row.dataJson) };
+    return { ...row, payload: JSON.parse(row.dataJson) };
   });
 
   ipcMain.handle('settings:get', (_event, key) => {
