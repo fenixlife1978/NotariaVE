@@ -137,3 +137,36 @@ test('stores attachment bytes inside SQLite and includes them in verified backup
     } finally { second.db.close(); }
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('preserves the previous backup and manifest when a replacement cannot be verified', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-backup-replace-'));
+  let validDb;
+  let invalidDb;
+  try {
+    const validDir = path.join(dir, 'valid');
+    const invalidDir = path.join(dir, 'invalid');
+    validDb = openDatabase(validDir);
+    invalidDb = openDatabase(invalidDir);
+    const timestamp = new Date().toISOString();
+    validDb.db.prepare("INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('valid-admin', 'admin', 'Administrador válido', 'admin', ?, ?, ?, ?)").run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+
+    const target = path.join(dir, 'existing.sqlite');
+    const first = await createVerifiedBackup(validDb.db, target);
+    const originalBytes = fs.readFileSync(target);
+    const originalManifest = fs.readFileSync(target + '.manifest.json');
+
+    await assert.rejects(
+      createVerifiedBackup(invalidDb.db, target),
+      /administrador local activo/
+    );
+
+    assert.deepEqual(fs.readFileSync(target), originalBytes);
+    assert.deepEqual(fs.readFileSync(target + '.manifest.json'), originalManifest);
+    assert.equal(verifyBackup(target).sha256, first.sha256);
+  } finally {
+    if (validDb?.db?.open) validDb.db.close();
+    if (invalidDb?.db?.open) invalidDb.db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
