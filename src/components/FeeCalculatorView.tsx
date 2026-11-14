@@ -79,11 +79,11 @@ RESUMEN DE LIQUIDACIÓN:
 • Subtotal Tasas Municipales (${selectedMunicipality.name} - LOCAPTEM): Bs. ${calculation.subtotalMunicipalBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalMunicipalUsd.toFixed(2)})
 • Honorarios Mínimos Sugeridos de Abogado (Reglamento Federación): Bs. ${calculation.subtotalHonorariosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalHonorariosUsd.toFixed(2)})
 
-TOTAL GENERAL ESTIMADO A PAGAR:
+TOTAL GENERAL ESTIMADO (NO OFICIAL):
 Bs. ${calculation.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} BOLÍVARES
 (Equivalente a US$ ${calculation.totalUsd.toFixed(2)} Dólares de los Estados Unidos de América a Tasa Oficial BCV)
 
-Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Orgánica de Armonización Tributaria (LOCAPTEM - G.O. 6.755 Ext.) y Ordenanzas Municipales.`;
+Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos en este modelo aún requieren contraste documental con la Gaceta Oficial, las normas aplicables y la ordenanza vigente de la jurisdicción.`;
 
     await exportToWordDocx(
       'Liquidación de Gastos Notariales y Municipales',
@@ -105,10 +105,10 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <Calculator className="w-6 h-6 text-amber-500" />
-            Calculadora de Aranceles Notariales, Timbres Fiscales y Tasas Municipales
+            Estimador Orientativo de Gastos Notariales, Registrales y Municipales
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Adaptada a la Ley de Registro y Notariado (G.O. 6.668), la Ley de Armonización Tributaria (LOCAPTEM) y las ordenanzas de cada municipio.
+            Estimaciones internas no oficiales. Verifique cada tarifa, porcentaje y vigencia directamente con SAREN, la autoridad estadal y la alcaldía competente.
           </p>
         </div>
 
@@ -492,7 +492,7 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-600 dark:text-slate-400">
             <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Base Normativa:</strong> Los cálculos de aranceles se ajustan a la reforma de la Ley de Registro Público y del Notariado (Gaceta Oficial N° 6.668 Extraordinario), la Ley Orgánica de Coordinación y Armonización de las Potestades Tributarias de los Estados y Municipios (LOCAPTEM - Gaceta Oficial N° 6.755 Extraordinario) y las ordenanzas impositivas de {selectedMunicipality.name}.
+              <strong>Advertencia:</strong> Este módulo genera una estimación interna no oficial. Sus porcentajes, mínimos y tasas no están certificados como vigentes. Confirme cada concepto, su base legal y su fecha de vigencia con SAREN, la autoridad tributaria estadal y la alcaldía de {selectedMunicipality.name} antes de cobrar o emitir una liquidación.
             </p>
           </div>
           </>}
