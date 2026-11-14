@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { openDatabase } = require('../electron/database.cjs');
+const { createVerifiedBackup, verifyBackup } = require('../electron/backup.cjs');
 
 function withTempDatabase(run) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-sqlite-'));
@@ -71,4 +72,25 @@ test('persists document payloads with revision metadata and audit references', (
     db.prepare('UPDATE documents SET revision = revision + 1 WHERE id = ?').run('doc-1');
     assert.equal(db.prepare('SELECT revision FROM documents WHERE id = ?').get('doc-1').revision, 2);
   });
+});
+
+test('creates a verifiable backup with manifest and detects tampering', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-backup-'));
+  let opened;
+  try {
+    opened = openDatabase(dir);
+    const backupPath = path.join(dir, 'user-backup.sqlite');
+    const created = await createVerifiedBackup(opened.db, backupPath);
+    assert.equal(created.schemaVersion, 2);
+    assert.equal(fs.existsSync(backupPath), true);
+    assert.equal(fs.existsSync(backupPath + '.manifest.json'), true);
+    const verified = verifyBackup(backupPath);
+    assert.equal(verified.sha256, created.sha256);
+    assert.deepEqual(verified.counts, created.counts);
+    fs.appendFileSync(backupPath, Buffer.from('tampered'));
+    assert.throws(() => verifyBackup(backupPath), /SHA-256/);
+  } finally {
+    if (opened?.db?.open) opened.db.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
