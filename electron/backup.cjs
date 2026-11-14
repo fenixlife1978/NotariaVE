@@ -86,7 +86,7 @@ function verifyBackup(filePath, DatabaseCtor = Database) {
   const actualHash = sha256File(filePath);
   if (actualHash !== manifest.sha256) throw new Error('La huella SHA-256 no coincide; el respaldo pudo modificarse o dañarse.');
   const inspection = inspectDatabase(filePath, DatabaseCtor);
-  if (inspection.schemaVersion !== manifest.schemaVersion || JSON.stringify(inspection.counts) !== JSON.stringify(manifest.counts)) {
+  if (inspection.schemaVersion !== manifest.schemaVersion || inspection.activeAdminCount !== manifest.activeAdminCount || JSON.stringify(inspection.counts) !== JSON.stringify(manifest.counts)) {
     throw new Error('El contenido del respaldo no coincide con su manifiesto.');
   }
   return { ...manifest, fileName: path.basename(filePath) };
