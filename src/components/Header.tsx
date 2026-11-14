@@ -1,7 +1,7 @@
 import React from 'react';
 import { Scale, FileText, Calculator, Users, Settings, Plus, LogOut, ShieldCheck } from 'lucide-react';
 
-type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments' | 'profile';
+type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments' | 'profile' | 'audit';
 interface HeaderProps {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onNewDo
     { id: 'clients', label: 'Clientes', icon: <Users className="w-4 h-4" /> },
     { id: 'attachments', label: 'Adjuntos', icon: <FileText className="w-4 h-4" /> },
     ...(lawyer ? [{ id: 'profile' as Tab, label: 'Mi perfil', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
-    ...(admin ? [{ id: 'settings' as Tab, label: 'Configuración', icon: <Settings className="w-4 h-4" /> }, { id: 'users' as Tab, label: 'Usuarios', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
+    ...(admin ? [{ id: 'settings' as Tab, label: 'Configuración', icon: <Settings className="w-4 h-4" /> }, { id: 'users' as Tab, label: 'Usuarios', icon: <ShieldCheck className="w-4 h-4" /> }, { id: 'audit' as Tab, label: 'Bitácora', icon: <FileText className="w-4 h-4" /> }] : []),
   ];
   return (
     <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-white shadow-sm">
