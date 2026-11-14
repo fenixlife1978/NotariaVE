@@ -21,6 +21,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: SQLite migration tests
+        run: npm test
       - name: TypeScript validation
         run: npm run lint
       - name: Renderer production build
