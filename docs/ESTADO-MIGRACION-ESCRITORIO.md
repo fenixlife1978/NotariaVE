@@ -26,15 +26,16 @@ Revisión: PR #1 en borrador. No fusionar todavía.
 
 ## Validación ejecutada
 
-- Una ejecución de GitHub Actions correspondiente al commit `19283f253a18faa0602c49fddd47a57030caae81` aprobó:
-  - 4 pruebas SQLite.
-  - TypeScript.
+- GitHub Actions, ejecución `43604320832` (commit `f7b6c1dcb9fcc52a3ef4b68a2996dc5787e18ca4`), terminó con ambos jobs en **success**:
+  - 6 pruebas SQLite aprobadas, 0 fallidas.
+  - TypeScript `tsc --noEmit`.
   - Build de producción Vite.
   - Pruebas SQLite y TypeScript en Windows.
-  - Generación del instalador NSIS x64 y subida del artefacto.
-- Ese instalador se generó antes de incorporar el importador de datos legados y las últimas restricciones de respaldo. No debe tratarse como instalador final.
-- Los últimos cambios de importación, datos iniciales vacíos y controles adicionales de backup necesitan una nueva ejecución CI.
-- No se ha probado manualmente el instalador en un equipo Windows ni el ciclo completo de restauración/importación en Electron.
+  - Generación del instalador NSIS x64 y subida del artefacto `NotariaVE-Windows-Installer` (aprox. 149 MB).
+- El artefacto corresponde al commit `f7b6c1d`; no incluye los cambios posteriores de controles de solo consulta en el editor/directorio ni la prueba adicional de respaldo de BLOB. No debe declararse instalador final.
+- La ejecución `43604594033` validó el encabezado y el componente de directorio antes de la última prueba de adjuntos; su estado final debe confirmarse.
+- La ejecución más reciente `43604704107` corresponde a la prueba ampliada de inclusión de adjuntos BLOB en respaldo; está pendiente al actualizar este documento.
+- No se ha instalado ni probado manualmente el instalador en un equipo Windows. Tampoco se ha ejecutado el ciclo real de importación/restauración desde la interfaz Electron.
 - Vercel no es runtime ni base de datos del producto. El check Vercel del repositorio no es criterio de aceptación para esta arquitectura.
 
 ## Pendiente — bloquea producción
