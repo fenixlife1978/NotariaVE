@@ -193,6 +193,7 @@ export default function App() {
             initialFormData={editorFormData}
             savedDocuments={savedDocuments}
             onSaveDocument={handleSaveDocument}
+            canSave={currentUser.role !== 'consulta'}
           />
         )}
 
