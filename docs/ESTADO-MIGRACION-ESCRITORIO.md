@@ -13,6 +13,7 @@ PR de revisión: #1 (borrador; no fusionar)
 - Migración inicial versionada con tablas de usuarios, clientes, documentos, configuración, auditoría, consultas externas y adjuntos.
 - Primer administrador local; contraseña con scrypt y sal aleatoria; login verificado en SQLite; sesión en memoria, sin persistirla en el renderer.
 - Clientes, perfil profesional y criterios SAREN ya leen/escriben a través de IPC SQLite.
+- Expedientes/documentos: guardado y reapertura en SQLite, búsqueda por título y comparecientes, persistencia del formulario completo y texto editado, contador de revisiones y auditoría de creación/modificación.
 - Eliminados datos de ejemplo de clientes y perfil profesional; el formulario documental ya no precarga identificaciones, domicilios, vehículos ni inmuebles ficticios.
 - Retiradas llamadas Gemini del runtime de escritorio; botones de IA deshabilitados mientras no exista consentimiento explícito.
 - Retirado Google Fonts; eliminado el servidor Express/Gemini y sus dependencias del runtime.
@@ -22,8 +23,8 @@ PR de revisión: #1 (borrador; no fusionar)
 
 ## Pendiente — bloquea la aprobación
 
-1. Ejecutar CI y corregir cualquier error de instalación, TypeScript, pruebas y build. La ejecución todavía no está confirmada.
-2. Persistir y recuperar documentos/expedientes completos desde SQLite; actualmente el esquema existe, pero la interfaz aún no ofrece ciclo completo de guardado, búsqueda y reapertura.
+1. Completar CI: una ejecución reciente instaló dependencias y pasó las 3 pruebas SQLite, pero TypeScript falló por tipos de registros de clientes y payload de documentos. Se corrigieron esos tipos; falta una nueva ejecución confirmatoria y build Vite.
+2. Validar el ciclo de documentos en la aplicación Electron real: crear, guardar, cerrar, volver a abrir, editar y verificar el incremento de revisión. La capa IPC y la interfaz ya están implementadas; falta prueba funcional de escritorio.
 3. Gestión de usuarios adicionales, cambio/reset de contraseña, roles y permisos efectivos.
 4. Adjuntos locales con escritura atómica, hashes y recuperación.
 5. Copias de seguridad y restauración verificadas.
@@ -35,8 +36,8 @@ PR de revisión: #1 (borrador; no fusionar)
 
 ## Verificación disponible
 
-- Primer workflow GitHub Actions: falló en instalación de dependencias antes de ejecutar pruebas. Causa identificada: Vite 8.3.8 exige peer opcional esbuild ^0.27.0 o ^0.28.0 y el proyecto fijaba ^0.25.0. Se actualizó esbuild a ^0.28.2; queda pendiente confirmar una nueva ejecución completa.
-- La ejecución fallida no alcanzó las pruebas SQLite, TypeScript ni build Vite.
+- Primer workflow GitHub Actions: falló en instalación de dependencias porque Vite 8.3.8 exigía esbuild ^0.27.0 o ^0.28.0; se actualizó a ^0.28.2.
+- Siguiente ejecución: instalación correcta y 3/3 pruebas SQLite aprobadas. TypeScript falló en tipos de clientes y payload de documentos; se corrigieron las declaraciones y falta confirmar una nueva ejecución. La compilación Vite quedó omitida por el fallo previo de TypeScript.
 - Revisión de código a través de GitHub; no se ejecutó en esta sesión una compilación local ni pruebas de escritorio.
 - El estado Vercel observado en el commit de trabajo no es criterio de aceptación para este producto y no se usó como runtime ni base de datos.
 - El PR #1 está en borrador y no está fusionado con `main`.
