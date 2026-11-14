@@ -7,8 +7,8 @@ declare global {
       bootstrapAdmin(input: { username: string; fullName: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       login(input: { username: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       logout(): Promise<{ success: boolean }>;
-      listClients(): Promise<Array<Record<string, unknown>>>;
-      saveClient(client: object): Promise<Record<string, unknown>>;
+      listClients(): Promise<any[]>;
+      saveClient(client: object): Promise<any>;
       deleteClient(id: string): Promise<{ deleted: boolean }>;
       listDocuments(): Promise<Array<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: Record<string, any> }>>;
       saveDocument(input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }): Promise<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: Record<string, any> }>;
