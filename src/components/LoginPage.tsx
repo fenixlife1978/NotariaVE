@@ -20,49 +20,28 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('abogado.notaria');
-  const [password, setPassword] = useState('notaria2026');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (!username.trim()) {
-      setError('Por favor ingrese su usuario o correo electrónico.');
+    if (!username.trim() || !password) {
+      setError('Ingrese su usuario y contraseña local.');
       return;
     }
-    if (!password.trim()) {
-      setError('Por favor ingrese su contraseña de acceso.');
-      return;
+    setIsLoading(true);
+    try {
+      const user = await window.notariaDesktop.login({ username: username.trim(), password });
+      onLogin(user);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No fue posible verificar el acceso local.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin({
-        username: username.trim(),
-        role: 'Abogado Forense / Visador SAREN',
-        fullName: username === 'abogado.notaria' ? 'Dr. Carlos Mendoza Silva' : username,
-      });
-    }, 400);
-  };
-
-  const handleQuickDemo = () => {
-    setUsername('abogado.notaria');
-    setPassword('notaria2026');
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin({
-        username: 'abogado.notaria',
-        role: 'Abogado Forense / Visador SAREN',
-        fullName: 'Dr. Carlos Mendoza Silva',
-      });
-    }, 250);
   };
 
   return (
@@ -182,7 +161,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="abogado.notaria o correo"
+                    placeholder="Usuario creado en este equipo"
                     autoComplete="username"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-950/80 border border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 rounded-xl text-xs text-white placeholder-slate-500 outline-none transition-all"
                   />
@@ -199,7 +178,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                     Contraseña:
                   </label>
                   <span className="text-[11px] text-amber-400/80 hover:text-amber-300 cursor-pointer transition-colors">
-                    ¿Olvidó su clave?
+                    Verificación local SQLite
                   </span>
                 </div>
                 <div className="relative">
@@ -229,44 +208,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 </div>
               </div>
 
-              {/* Remember Me Checkbox */}
-              <div className="flex items-center justify-between text-xs pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500/20"
-                  />
-                  <span>Recordar sesión en este equipo</span>
-                </label>
-              </div>
-
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={isLoading}
                 className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold rounded-xl text-xs shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer mt-2"
               >
-                <span>{isLoading ? 'Verificando Acceso...' : 'Ingresar a MVP Notaría VE'}</span>
+                <span>{isLoading ? 'Verificando Acceso...' : 'Ingresar a NotariaVE'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
-            {/* Quick 1-Click Demo Login */}
-            <div className="mt-5 pt-4 border-t border-slate-800 text-center space-y-2">
-              <span className="text-[11px] text-slate-400 block">
-                ¿Desea probar el sistema sin ingresar datos?
-              </span>
-              <button
-                type="button"
-                onClick={handleQuickDemo}
-                className="w-full py-2 px-3 bg-slate-800/80 hover:bg-slate-800 text-amber-400 hover:text-amber-300 border border-slate-700/80 rounded-xl text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>Acceso Rápido Demo (Dr. Carlos Mendoza)</span>
-              </button>
-            </div>
+
           </div>
         </div>
       </main>
