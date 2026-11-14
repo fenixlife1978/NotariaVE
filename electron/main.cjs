@@ -31,9 +31,7 @@ function writeAudit(actorId, action, entityType, entityId, details = {}) {
 
 function registerIpc() {
   ipcMain.handle('app:get-status', () => ({
-    databasePath: dbPath,
     needsInitialAdmin: db.prepare('SELECT COUNT(*) AS count FROM users').get().count === 0,
-    authenticated: Boolean(activeSession),
   }));
 
   ipcMain.handle('auth:bootstrap-admin', (_event, input = {}) => {
