@@ -1002,7 +1002,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                       grantor: { ...prev.grantor, fullName: e.target.value },
                     }))
                   }
-                  placeholder="CARLOS EDUARDO MENDOZA SILVA"
+                  placeholder="Nombre completo del otorgante"
                   className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-medium text-slate-900 dark:text-slate-100"
                 />
               </div>
@@ -1035,7 +1035,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           grantor: { ...prev.grantor, idCardNumber: e.target.value },
                         }))
                       }
-                      placeholder="14.892.341"
+                      placeholder="Número de cédula"
                       className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                     />
                   </div>
@@ -1070,7 +1070,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           grantor: { ...prev.grantor, rifNumber: e.target.value },
                         }))
                       }
-                      placeholder="14892341-2"
+                      placeholder="Número de RIF"
                       className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                     />
                   </div>
@@ -1209,7 +1209,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         grantee: { ...prev.grantee, fullName: e.target.value },
                       }))
                     }
-                    placeholder="MARÍA ALEJANDRA HERNÁNDEZ"
+                    placeholder="Nombre completo de la otra parte"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-medium text-slate-900 dark:text-slate-100"
                   />
                 </div>
@@ -1242,7 +1242,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                             grantee: { ...prev.grantee, idCardNumber: e.target.value },
                           }))
                         }
-                        placeholder="18.423.905"
+                        placeholder="Número de cédula"
                         className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
@@ -1593,7 +1593,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         vehicle: { ...prev.vehicle, inttCertificateNumber: e.target.value },
                       }))
                     }
-                    placeholder="INTT-987654321"
+                    placeholder="Número de certificado INTT"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
                   />
                 </div>
@@ -1611,7 +1611,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         vehicle: { ...prev.vehicle, serialBody: e.target.value },
                       }))
                     }
-                    placeholder="8A3BB46E1J5019283"
+                    placeholder="Serial de carrocería"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
                   />
                 </div>
@@ -1773,7 +1773,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         power: { ...prev.power, attorneyName: e.target.value },
                       }))
                     }
-                    placeholder="MARÍA ALEJANDRA HERNÁNDEZ"
+                    placeholder="Nombre completo de la otra parte"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-bold"
                   />
                 </div>
@@ -1792,7 +1792,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           power: { ...prev.power, attorneyCedula: e.target.value },
                         }))
                       }
-                      placeholder="V-18.423.905"
+                      placeholder="V-Número de cédula"
                       className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
                     />
                   </div>
