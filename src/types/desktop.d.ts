@@ -16,6 +16,8 @@ declare global {
       restoreBackup(): Promise<{ canceled: boolean; restored?: boolean; fileName?: string; safetyBackup?: string; counts?: Record<string, number> }>;
       selectLegacyImport(): Promise<{ canceled: boolean; token?: string; fileName?: string; clientsCount?: number; suspectedDemoClients?: number; hasLawyer?: boolean; suspectedDemoLawyer?: boolean; hasCriteria?: boolean; suspectedDemoCriteria?: boolean }>;
       importLegacyData(token: string): Promise<{ fileName: string; importedClients: number; skippedDuplicates: number; skippedDemoClients: number; lawyerImported: boolean; lawyerSkippedDemo: boolean; criteriaImported: boolean; criteriaSkippedDemo: boolean }>;
+      selectLegacyImport(): Promise<{ canceled: boolean; token?: string; fileName?: string; clientsCount?: number; suspectedDemoClients?: number; hasLawyer?: boolean; suspectedDemoLawyer?: boolean; hasCriteria?: boolean; suspectedDemoCriteria?: boolean }>;
+      importLegacyData(token: string): Promise<{ fileName: string; importedClients: number; skippedDuplicates: number; skippedDemoClients: number; lawyerImported: boolean; lawyerSkippedDemo: boolean; criteriaImported: boolean; criteriaSkippedDemo: boolean }>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
     };
