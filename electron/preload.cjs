@@ -2,6 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('notariaDesktop', {
   getStatus: () => ipcRenderer.invoke('app:get-status'),
+  getLicenseStatus: () => ipcRenderer.invoke('license:get-status'),
+  activateLicense: (input) => ipcRenderer.invoke('license:activate', input),
+  openLicensePlans: () => ipcRenderer.invoke('license:open-plans'),
   bootstrapAdmin: (input) => ipcRenderer.invoke('auth:bootstrap-admin', input),
   login: (input) => ipcRenderer.invoke('auth:login', input),
   logout: () => ipcRenderer.invoke('auth:logout'),
