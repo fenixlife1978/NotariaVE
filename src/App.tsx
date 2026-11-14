@@ -12,6 +12,7 @@ import { FeeCalculatorView } from './components/FeeCalculatorView';
 import { ClientDirectory } from './components/ClientDirectory';
 import { SarenSettingsView } from './components/SarenSettingsModal';
 import { BackupManager } from './components/BackupManager';
+import { LegacyImportManager } from './components/LegacyImportManager';
 import { INITIAL_LAWYER, INITIAL_SAREN_CRITERIA } from './data/initialData';
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
@@ -59,6 +60,19 @@ export default function App() {
     })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
   }, [currentUser]);
+
+  const handleRefreshLocalData = async () => {
+    const [storedClients, storedLawyer, storedCriteria, storedDocuments] = await Promise.all([
+      window.notariaDesktop.listClients(),
+      window.notariaDesktop.getSetting('lawyer_profile'),
+      window.notariaDesktop.getSetting('saren_criteria'),
+      window.notariaDesktop.listDocuments(),
+    ]);
+    setClients(storedClients as unknown as ClientParty[]);
+    setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
+    setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
+    setSavedDocuments(storedDocuments);
+  };
 
   const handleSaveDocument = async (input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }) => {
     const saved = await window.notariaDesktop.saveDocument(input);
@@ -209,6 +223,7 @@ export default function App() {
           />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
             <BackupManager />
+            <div className="mt-4"><LegacyImportManager onImported={handleRefreshLocalData} /></div>
           </div>
           </>
         )}
