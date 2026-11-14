@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('notariaDesktop', {
   deleteClient: (id) => ipcRenderer.invoke('clients:delete', id),
   listDocuments: () => ipcRenderer.invoke('documents:list'),
   saveDocument: (input) => ipcRenderer.invoke('documents:save', input),
+  createBackup: () => ipcRenderer.invoke('backup:create'),
+  restoreBackup: () => ipcRenderer.invoke('backup:restore'),
   getSetting: (key) => ipcRenderer.invoke('settings:get', key),
   saveSetting: (key, value) => ipcRenderer.invoke('settings:save', { key, value }),
 });
