@@ -34,7 +34,7 @@ Revisión: PR #1 en borrador. No fusionar todavía.
   - Generación del instalador NSIS x64 y subida del artefacto `NotariaVE-Windows-Installer` (aprox. 149 MB).
 - El artefacto corresponde al commit `f7b6c1d`; no incluye los cambios posteriores de controles de solo consulta en el editor/directorio ni la prueba adicional de respaldo de BLOB. No debe declararse instalador final.
 - La ejecución `43604594033` validó el encabezado y el componente de directorio antes de la última prueba de adjuntos; su estado final debe confirmarse.
-- La ejecución más reciente `43604704107` corresponde a la prueba ampliada de inclusión de adjuntos BLOB en respaldo; está pendiente al actualizar este documento.
+- La ejecución más reciente `43604704107` ya aprobó el job `validate`: 6 pruebas SQLite, TypeScript y build Vite. El job Windows pasó las pruebas SQLite de Windows y TypeScript; está terminando la generación del instalador NSIS y la subida del artefacto.
 - No se ha instalado ni probado manualmente el instalador en un equipo Windows. Tampoco se ha ejecutado el ciclo real de importación/restauración desde la interfaz Electron.
 - Vercel no es runtime ni base de datos del producto. El check Vercel del repositorio no es criterio de aceptación para esta arquitectura.
 
