@@ -36,7 +36,7 @@ export const BackupManager: React.FC = () => {
         <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center"><Archive className="w-5 h-5" /></div>
         <div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-white">Copias de seguridad locales</h2>
-          <p className="text-xs text-slate-500 mt-1">La copia se guarda donde usted elija. No se envía a Internet ni a ningún servicio en la nube.</p>
+          <p className="text-xs text-slate-500 mt-1">Guárdela en un disco local o USB. El archivo .sqlite y su manifiesto .manifest.json deben conservarse juntos; no se envían a la nube.</p>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">
