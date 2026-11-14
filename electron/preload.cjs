@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('notariaDesktop', {
   restoreBackup: () => ipcRenderer.invoke('backup:restore'),
   selectLegacyImport: () => ipcRenderer.invoke('legacy:select'),
   importLegacyData: (token, options) => ipcRenderer.invoke('legacy:import', { token, ...options }),
+  listAuditEvents: (input) => ipcRenderer.invoke('audit:list', input),
   getSetting: (key) => ipcRenderer.invoke('settings:get', key),
   saveSetting: (key, value) => ipcRenderer.invoke('settings:save', { key, value }),
   listUsers: () => ipcRenderer.invoke('users:list'),
