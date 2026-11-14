@@ -19,4 +19,8 @@ contextBridge.exposeInMainWorld('notariaDesktop', {
   listUsers: () => ipcRenderer.invoke('users:list'),
   createUser: (input) => ipcRenderer.invoke('users:create', input),
   updateUser: (input) => ipcRenderer.invoke('users:update', input),
+  listAttachments: (input) => ipcRenderer.invoke('attachments:list', input),
+  addAttachment: (input) => ipcRenderer.invoke('attachments:add', input),
+  exportAttachment: (id) => ipcRenderer.invoke('attachments:export', id),
+  deleteAttachment: (id) => ipcRenderer.invoke('attachments:delete', id),
 });
