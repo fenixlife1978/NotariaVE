@@ -213,11 +213,17 @@ function registerIpc() {
     const safetyCopy = await createVerifiedBackup(db, safetyPath);
     const stagedPath = `${databasePath}.restore-${randomUUID()}`;
     const stagedManifest = `${stagedPath}.manifest.json`;
-    fs.copyFileSync(selectedPath, stagedPath);
-    fs.copyFileSync(`${selectedPath}.manifest.json`, stagedManifest);
-    verifyBackup(stagedPath);
-    db.pragma('wal_checkpoint(TRUNCATE)');
-    db.close();
+    try {
+      fs.copyFileSync(selectedPath, stagedPath);
+      fs.copyFileSync(`${selectedPath}.manifest.json`, stagedManifest);
+      verifyBackup(stagedPath);
+      db.pragma('wal_checkpoint(TRUNCATE)');
+      db.close();
+    } catch (error) {
+      if (fs.existsSync(stagedPath)) fs.unlinkSync(stagedPath);
+      if (fs.existsSync(stagedManifest)) fs.unlinkSync(stagedManifest);
+      throw error;
+    }
     const displacedPath = `${databasePath}.displaced-${randomUUID()}`;
     try {
       for (const suffix of ['-wal', '-shm']) {
