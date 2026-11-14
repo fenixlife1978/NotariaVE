@@ -72,7 +72,7 @@ export default function App() {
 
 
   useEffect(() => {
-    if (licenseStatus?.state !== 'trial' || showLicenseGate) return;
+    if (!['trial', 'active'].includes(licenseStatus?.state || '')) return;
     const timer = window.setInterval(() => {
       window.notariaDesktop.getLicenseStatus().then((latest) => {
         setLicenseStatus(latest);
@@ -80,7 +80,7 @@ export default function App() {
       }).catch(() => undefined);
     }, 60_000);
     return () => window.clearInterval(timer);
-  }, [licenseStatus?.state, showLicenseGate]);
+  }, [licenseStatus?.state]);
 
   const handleRefreshLocalData = async () => {
     const [storedClients, storedLawyer, storedCriteria, storedDocuments] = await Promise.all([
