@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { openDatabase } = require('../electron/database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('../electron/backup.cjs');
+const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('../electron/legacy-import.cjs');
 
 function withTempDatabase(run) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-sqlite-'));
@@ -93,4 +94,22 @@ test('creates a verifiable backup with manifest and detects tampering', async ()
     if (opened?.db?.open) opened.db.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('validates legacy browser export and identifies known demo records', () => {
+  const demoClient = { id: 'cli-1', fullName: 'Carlos Eduardo Mendoza Silva' };
+  const demoLawyer = { fullName: 'Dr. Luis Alejandro Briceño Rivas', inpreabogado: '148.902', email: 'escritorio.briceno.asociados@gmail.com' };
+  const demoCriteria = { state: 'Distrito Capital', municipality: 'Libertador', officeName: 'Notaría Pública Segunda de Caracas (Distrito Capital)', bcvRate: 68.5 };
+  const parsed = validateLegacyExport({
+    format: 'notariave-legacy-export',
+    version: 1,
+    data: { clients: [demoClient, { id: 'real-1', fullName: 'Cliente Real' }], lawyer: demoLawyer, criteria: demoCriteria },
+  });
+  assert.equal(parsed.clients.length, 2);
+  assert.equal(isSeedDemoClient(parsed.clients[0]), true);
+  assert.equal(isSeedDemoClient(parsed.clients[1]), false);
+  assert.equal(isSeedDemoLawyer(parsed.lawyer), true);
+  assert.equal(isSeedDemoCriteria(parsed.criteria), true);
+  assert.throws(() => validateLegacyExport({ format: 'wrong', version: 1, data: {} }), /formato/);
+  assert.throws(() => validateLegacyExport({ format: 'notariave-legacy-export', version: 1, data: { clients: [{ fullName: '' }] } }), /nombre válido/);
 });
