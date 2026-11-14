@@ -34,6 +34,7 @@ export default function App() {
   const [lawyer, setLawyer] = useState<LawyerProfile>(INITIAL_LAWYER);
   const [criteria, setCriteria] = useState<SarenCriteriaConfig>(INITIAL_SAREN_CRITERIA);
   const [editorFormData, setEditorFormData] = useState<DocumentFormData | null>(null);
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0);
   const [savedDocuments, setSavedDocuments] = useState<Array<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: any }>>([]);
 
   useEffect(() => {
@@ -128,6 +129,7 @@ export default function App() {
 
   const handleNewDocument = () => {
     setEditorFormData(null);
+    setEditorInstanceKey((value) => value + 1);
     setActiveTab('editor');
   };
 
@@ -169,6 +171,7 @@ export default function App() {
       <main className="flex-1 pb-16">
         {activeTab === 'editor' && (
           <DocumentEditor
+            key={editorInstanceKey}
             clients={clients}
             lawyer={lawyer}
             criteria={criteria}
