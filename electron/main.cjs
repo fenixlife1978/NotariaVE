@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const { randomUUID, randomBytes, scryptSync, timingSafeEqual } = require('node:crypto');
 const { openDatabase } = require('./database.cjs');
 
@@ -154,8 +155,11 @@ function createWindow() {
     if (url.startsWith('https://')) shell.openExternal(url);
     return { action: 'deny' };
   });
+  const packagedRendererUrl = pathToFileURL(path.resolve(__dirname, '..', 'dist', 'index.html')).href;
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const allowed = url.startsWith('file://') || url.startsWith('http://127.0.0.1:5173/');
+    const allowed = app.isPackaged
+      ? url === packagedRendererUrl
+      : new URL(url).origin === 'http://127.0.0.1:5173';
     if (!allowed) event.preventDefault();
   });
 
