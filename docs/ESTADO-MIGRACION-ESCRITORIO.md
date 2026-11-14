@@ -29,21 +29,21 @@ Revisión: PR #1 en borrador. No fusionar todavía.
 
 ## Validación ejecutada
 
-- GitHub Actions, ejecución `43604320832` (commit `f7b6c1dcb9fcc52a3ef4b68a2996dc5787e18ca4`), terminó con ambos jobs en **success**:
-  - 6 pruebas SQLite aprobadas, 0 fallidas.
+- GitHub Actions, ejecución `43643622165`, commit `d044c6a8d46633d0a4a090d9ce5ff5ef3d08294f`, terminó con ambos jobs en **success**:
+  - 7 pruebas SQLite aprobadas.
   - TypeScript `tsc --noEmit`.
   - Build de producción Vite.
   - Pruebas SQLite y TypeScript en Windows.
-  - Generación del instalador NSIS x64 y subida del artefacto `NotariaVE-Windows-Installer` (aprox. 149 MB).
-- El artefacto corresponde al commit `f7b6c1d`; no incluye los cambios posteriores de controles de solo consulta en el editor/directorio ni la prueba adicional de respaldo de BLOB. No debe declararse instalador final.
-- La ejecución `43604594033` validó el encabezado y el componente de directorio antes de la última prueba de adjuntos; su estado final debe confirmarse.
-- La ejecución más reciente `43604704107` ya aprobó el job `validate`: 6 pruebas SQLite, TypeScript y build Vite. El job Windows también terminó en **success**: pruebas SQLite de Windows, TypeScript, generación del instalador NSIS x64 y subida del artefacto.
-- Artefacto de CI: `NotariaVE-Windows-Installer`, ID `14117832578`, SHA-256 del artefacto ZIP `9f944b1f92463ce2af00d3643d85afda6cf42b1f2e709cdc6fe92a74ce4b0520`, generado desde `8416881b6d313b3e022dc4ce1859e964352a6127`. No se ha instalado ni probado manualmente el instalador en un equipo Windows. Tampoco se ha ejecutado el ciclo real de importación/restauración desde la interfaz Electron.
-- Vercel no es runtime ni base de datos del producto. El check Vercel del repositorio no es criterio de aceptación para esta arquitectura.
+  - Generación del instalador NSIS x64 y subida del artefacto `NotariaVE-Windows-Installer`.
+- Artefacto de ese commit: ID `14133441505`, 149 MB, SHA-256 `72c3d32158ed2a1dcaa07d6673b1da0a4abede75c6b36f420b759b9e56783e08`. [Abrir artefacto en GitHub Actions](https://github.com/fenixlife1978/NotariaVE/actions/runs/43643622165/artifacts/14133441505).
+- Después se añadió protección adicional para impedir que una ruta de respaldo/restauración use un hardlink de la base SQLite activa, además de rutas equivalentes por mayúsculas/minúsculas en Windows. Se incorporó una prueba de regresión para esa protección.
+- La ejecución `43645133698`, commit `56c2b8d4a1f329afd6b1ac5f7ef85436a45e65dd`, está **en curso**; aún no se declara aprobada ni hay instalador generado para ese commit.
+- No se ha instalado ni probado manualmente el instalador en un equipo Windows. Tampoco se ha ejecutado el ciclo real de importación/restauración desde la interfaz Electron.
+- Vercel no es runtime ni base de datos del producto. El check Vercel no es criterio de aceptación para esta arquitectura de escritorio.
 
 ## Pendiente — bloquea producción
 
-1. Confirmar CI completo de los cambios más recientes y regenerar el instalador Windows.
+1. Esperar el resultado de CI `43645133698`; si aprueba, conservar y verificar el nuevo instalador Windows.
 2. Probar en Electron: crear expediente, guardar, cerrar, reabrir, editar y verificar revisión/auditoría.
 3. Probar crear respaldo, mover juntos `.sqlite` y `.manifest.json`, restaurar y verificar datos.
 4. Probar restauración fallida/interrumpida y confirmar recuperación del archivo previo.
@@ -56,4 +56,4 @@ Revisión: PR #1 en borrador. No fusionar todavía.
 
 ## Dictamen
 
-**Migración en curso; todavía no apto para producción profesional.** La base de escritorio, autenticación local, expedientes, respaldos, importación legada, administración de usuarios/roles y almacenamiento de adjuntos están implementados en código. Falta confirmar CI de los últimos cambios y ejecutar pruebas funcionales reales en Windows. No fusionar ni publicar todavía.
+**Candidato de escritorio compilable; todavía no apto para producción profesional.** La base de escritorio, autenticación local, expedientes, respaldos, importación legada, administración de usuarios/roles y almacenamiento de adjuntos están implementados en código. Falta confirmar CI de los últimos cambios y ejecutar pruebas funcionales reales en Windows. No fusionar ni publicar todavía.
