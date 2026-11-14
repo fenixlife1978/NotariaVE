@@ -356,6 +356,10 @@ function registerIpc() {
         databasePath = reopened.dbPath;
       } catch (error) {
         if (fs.existsSync(databasePath)) fs.unlinkSync(databasePath);
+        for (const suffix of ['-wal', '-shm']) {
+          const sidecar = `${databasePath}${suffix}`;
+          if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+        }
         fs.renameSync(displacedPath, databasePath);
         const recovered = openDatabase(userDataPath);
         db = recovered.db;
@@ -381,6 +385,10 @@ function registerIpc() {
       };
     } catch (error) {
       if (fs.existsSync(displacedPath) && !fs.existsSync(databasePath)) {
+        for (const suffix of ['-wal', '-shm']) {
+          const sidecar = `${databasePath}${suffix}`;
+          if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+        }
         fs.renameSync(displacedPath, databasePath);
       }
       if (!db || !db.open) {
