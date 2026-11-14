@@ -1,9 +1,12 @@
 export {};
 
-declare global {
+type LicenseStatus = { state: 'trial' | 'expired' | 'active' | 'revalidation_required'; allowed: boolean; trialStartedAt?: string; trialEndsAt?: string; remainingMs?: number; remainingHours?: number; trialDurationHours?: number; licenseName?: string; offlineUntil?: string | null; offlineDays?: number; message?: string };\n\ndeclare global {
   interface Window {
     notariaDesktop: {
-      getStatus(): Promise<{ needsInitialAdmin: boolean }>;
+      getStatus(): Promise<{ needsInitialAdmin: boolean; license: LicenseStatus }>;
+      getLicenseStatus(): Promise<LicenseStatus>;
+      activateLicense(input: { licenseKey: string }): Promise<LicenseStatus>;
+      openLicensePlans(): Promise<{ opened: boolean }>;
       bootstrapAdmin(input: { username: string; fullName: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       login(input: { username: string; password: string }): Promise<{ id: string; username: string; fullName: string; role: string }>;
       logout(): Promise<{ success: boolean }>;
