@@ -282,6 +282,7 @@ function registerIpc() {
 
   ipcMain.handle('legacy:select', async () => {
     requireAdmin();
+    pendingLegacyImport = null;
     const selection = await dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar exportación de NotariaVE anterior',
       buttonLabel: 'Revisar datos',
