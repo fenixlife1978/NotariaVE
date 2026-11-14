@@ -28,7 +28,7 @@ test('creates an isolated local SQLite schema with foreign keys enabled', () => 
     assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
     assert.equal(db.pragma('journal_mode', { simple: true }), 'wal');
     assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users').get().count, 0);
-    assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 2);
+    assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, 3);
     const documentColumns = db.prepare('PRAGMA table_info(documents)').all().map((column) => column.name);
     assert.ok(documentColumns.includes('updated_by'));
     assert.ok(documentColumns.includes('revision'));
@@ -42,7 +42,7 @@ test('keeps the schema migration idempotent across reopen', () => {
     first.db.close();
     const second = openDatabase(dir);
     try {
-      assert.equal(second.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 2);
+      assert.equal(second.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count, 3);
       assert.equal(second.db.pragma('quick_check')[0].quick_check, 'ok');
     } finally {
       second.db.close();
@@ -84,7 +84,7 @@ test('creates a verifiable backup with manifest and detects tampering', async ()
     opened.db.prepare(`INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('backup-admin', 'admin', 'Administrador', 'admin', ?, ?, ?, ?)`).run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
     const backupPath = path.join(dir, 'user-backup.sqlite');
     const created = await createVerifiedBackup(opened.db, backupPath);
-    assert.equal(created.schemaVersion, 2);
+    assert.equal(created.schemaVersion, 3);
     assert.equal(fs.existsSync(backupPath), true);
     assert.equal(fs.existsSync(backupPath + '.manifest.json'), true);
     const verified = verifyBackup(backupPath);
@@ -114,4 +114,22 @@ test('validates legacy browser export and identifies known demo records', () => 
   assert.equal(isSeedDemoCriteria(parsed.criteria), true);
   assert.throws(() => validateLegacyExport({ format: 'wrong', version: 1, data: {} }), /formato/);
   assert.throws(() => validateLegacyExport({ format: 'notariave-legacy-export', version: 1, data: { clients: [{ fullName: '' }] } }), /nombre válido/);
+});
+test('stores attachment bytes inside SQLite and preserves them after reopening', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-attachments-'));
+  try {
+    const first = openDatabase(dir);
+    const timestamp = new Date().toISOString();
+    first.db.prepare("INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('attachment-admin', 'admin', 'Administrador', 'admin', ?, ?, ?, ?)").run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+    first.db.prepare("INSERT INTO documents(id, title, template_id, data_json, created_by, created_at, updated_at) VALUES ('doc-attach', 'Documento de prueba', 'poder', '{}', 'attachment-admin', ?, ?)").run(timestamp, timestamp);
+    const bytes = Buffer.from('contenido de prueba');
+    first.db.prepare("INSERT INTO attachments(id, entity_type, entity_id, relative_path, original_name, mime_type, size_bytes, sha256, created_at, content) VALUES ('att-1', 'document', 'doc-attach', 'sqlite-blob:att-1', 'prueba.txt', 'text/plain', ?, 'hash', ?, ?)").run(bytes.length, timestamp, bytes);
+    first.db.close();
+    const second = openDatabase(dir);
+    try {
+      const saved = second.db.prepare("SELECT content, size_bytes FROM attachments WHERE id = 'att-1'").get();
+      assert.deepEqual(saved.content, bytes);
+      assert.equal(saved.size_bytes, bytes.length);
+    } finally { second.db.close(); }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
