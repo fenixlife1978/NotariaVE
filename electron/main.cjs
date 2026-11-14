@@ -8,7 +8,6 @@ const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
 const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
 const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
-const os = require('node:os');
 const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 
 let mainWindow;
@@ -107,7 +106,7 @@ function registerIpc() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Cache-Control': 'no-store' },
       body: JSON.stringify({ licenseKey, productCode: LICENSE_PRODUCT_CODE, installationId,
-        deviceLabel: `${os.hostname()} · ${process.platform} ${process.arch}` }),
+        deviceLabel: `NotariaVE ${process.platform} ${process.arch}` }),
       signal: AbortSignal.timeout(12000),
     }).catch(() => { throw new Error('No fue posible conectar con CRM-Sicoven. Verifique internet e inténtelo nuevamente.'); });
     const payload = await response.json().catch(() => ({}));
