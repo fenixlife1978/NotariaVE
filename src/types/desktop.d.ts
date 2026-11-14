@@ -15,7 +15,7 @@ declare global {
       createBackup(): Promise<{ canceled: boolean; fileName?: string; sha256?: string; createdAt?: string; counts?: Record<string, number> }>;
       restoreBackup(): Promise<{ canceled: boolean; restored?: boolean; fileName?: string; safetyBackup?: string; counts?: Record<string, number> }>;
       selectLegacyImport(): Promise<{ canceled: boolean; token?: string; fileName?: string; clientsCount?: number; suspectedDemoClients?: number; hasLawyer?: boolean; suspectedDemoLawyer?: boolean; hasCriteria?: boolean; suspectedDemoCriteria?: boolean }>;
-      importLegacyData(token: string): Promise<{ fileName: string; importedClients: number; skippedDuplicates: number; skippedDemoClients: number; lawyerImported: boolean; lawyerSkippedDemo: boolean; criteriaImported: boolean; criteriaSkippedDemo: boolean }>;
+      importLegacyData(token: string, options?: { includeDemoRecords?: boolean }): Promise<{ fileName: string; importedClients: number; skippedDuplicates: number; skippedDemoClients: number; lawyerImported: boolean; lawyerSkippedDemo: boolean; criteriaImported: boolean; criteriaSkippedDemo: boolean; includeDemoRecords: boolean }>;
       selectLegacyImport(): Promise<{ canceled: boolean; token?: string; fileName?: string; clientsCount?: number; suspectedDemoClients?: number; hasLawyer?: boolean; suspectedDemoLawyer?: boolean; hasCriteria?: boolean; suspectedDemoCriteria?: boolean }>;
       importLegacyData(token: string): Promise<{ fileName: string; importedClients: number; skippedDuplicates: number; skippedDemoClients: number; lawyerImported: boolean; lawyerSkippedDemo: boolean; criteriaImported: boolean; criteriaSkippedDemo: boolean }>;
       getSetting(key: string): Promise<unknown>;
