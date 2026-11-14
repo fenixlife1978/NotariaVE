@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { randomUUID, randomBytes, scryptSync, timingSafeEqual } = require('node:crypto');
+const { randomUUID, randomBytes, scryptSync, timingSafeEqual, createHash } = require('node:crypto');
 const { openDatabase } = require('./database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
@@ -174,6 +174,76 @@ function registerIpc() {
       FROM documents WHERE id = ?
     `).get(id);
     return { ...row, payload: JSON.parse(row.dataJson) };
+  });
+
+  ipcMain.handle('attachments:list', (_event, input = {}) => {
+    requireSession();
+    const entityType = String(input.entityType || '');
+    const entityId = String(input.entityId || '');
+    if (!['document', 'client'].includes(entityType) || !entityId || entityId.length > 120) throw new Error('Referencia del adjunto no válida.');
+    return db.prepare(`
+      SELECT id, entity_type AS entityType, entity_id AS entityId, original_name AS originalName,
+        mime_type AS mimeType, size_bytes AS sizeBytes, sha256, created_at AS createdAt
+      FROM attachments WHERE entity_type = ? AND entity_id = ? ORDER BY created_at DESC
+    `).all(entityType, entityId);
+  });
+
+  ipcMain.handle('attachments:add', async (_event, input = {}) => {
+    const actor = requireRole('admin', 'abogado', 'asistente');
+    const entityType = String(input.entityType || '');
+    const entityId = String(input.entityId || '');
+    if (!['document', 'client'].includes(entityType) || !entityId || entityId.length > 120) throw new Error('Referencia del adjunto no válida.');
+    const entityExists = entityType === 'document'
+      ? db.prepare('SELECT 1 FROM documents WHERE id = ?').get(entityId)
+      : db.prepare('SELECT 1 FROM clients WHERE id = ?').get(entityId);
+    if (!entityExists) throw new Error('El registro al que intenta adjuntar el archivo no existe.');
+    const selection = await dialog.showOpenDialog(mainWindow, {
+      title: 'Seleccionar archivo para guardar dentro de SQLite',
+      properties: ['openFile'],
+      filters: [{ name: 'Documentos e imágenes', extensions: ['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt', 'jpg', 'jpeg', 'png', 'webp'] }],
+    });
+    if (selection.canceled || selection.filePaths.length === 0) return { canceled: true };
+    const sourcePath = selection.filePaths[0];
+    const stat = fs.statSync(sourcePath);
+    if (!stat.isFile() || stat.size < 1 || stat.size > 20 * 1024 * 1024) throw new Error('El archivo debe pesar entre 1 byte y 20 MB.');
+    const originalName = path.basename(sourcePath).slice(0, 240);
+    const extension = path.extname(originalName).toLowerCase();
+    const mimeByExtension = { '.pdf': 'application/pdf', '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', '.odt': 'application/vnd.oasis.opendocument.text', '.rtf': 'application/rtf', '.txt': 'text/plain', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+    const mimeType = mimeByExtension[extension];
+    if (!mimeType) throw new Error('Tipo de archivo no permitido.');
+    const content = fs.readFileSync(sourcePath);
+    const id = randomUUID();
+    const sha256 = createHash('sha256').update(content).digest('hex');
+    const timestamp = now();
+    db.prepare(`
+      INSERT INTO attachments(id, entity_type, entity_id, relative_path, original_name, mime_type, size_bytes, sha256, created_at, content)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, entityType, entityId, 'sqlite-blob:' + id, originalName, mimeType, content.length, sha256, timestamp, content);
+    writeAudit(actor.id, 'attachment_added', entityType, entityId, { attachmentId: id, originalName, sizeBytes: content.length, sha256 });
+    return { canceled: false, id, originalName, mimeType, sizeBytes: content.length, sha256, createdAt: timestamp };
+  });
+
+  ipcMain.handle('attachments:export', async (_event, id) => {
+    requireSession();
+    const attachmentId = String(id || '');
+    const row = db.prepare('SELECT original_name, content, sha256 FROM attachments WHERE id = ?').get(attachmentId);
+    if (!row || !row.content) throw new Error('El adjunto no existe o no contiene datos.');
+    const actualHash = createHash('sha256').update(row.content).digest('hex');
+    if (actualHash !== row.sha256) throw new Error('El contenido del adjunto no superó la verificación SHA-256.');
+    const selection = await dialog.showSaveDialog(mainWindow, { title: 'Exportar copia del adjunto', defaultPath: row.original_name });
+    if (selection.canceled || !selection.filePath) return { canceled: true };
+    fs.writeFileSync(selection.filePath, row.content, { flag: 'wx' });
+    return { canceled: false, fileName: path.basename(selection.filePath), sha256: actualHash };
+  });
+
+  ipcMain.handle('attachments:delete', (_event, id) => {
+    const actor = requireRole('admin', 'abogado');
+    const attachmentId = String(id || '');
+    const row = db.prepare('SELECT entity_type, entity_id, original_name FROM attachments WHERE id = ?').get(attachmentId);
+    if (!row) return { deleted: false };
+    db.prepare('DELETE FROM attachments WHERE id = ?').run(attachmentId);
+    writeAudit(actor.id, 'attachment_deleted', row.entity_type, row.entity_id, { attachmentId, originalName: row.original_name });
+    return { deleted: true };
   });
 
   ipcMain.handle('backup:create', async () => {
