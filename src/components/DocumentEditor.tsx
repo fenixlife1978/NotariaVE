@@ -76,7 +76,7 @@ type SavedDocument = {
   templateId: string;
   updatedAt: string;
   revision: number;
-  payload: { formData: DocumentFormData; customDraftText?: string; isRawEditing?: boolean };
+  payload: any;
 };
 
 interface DocumentEditorProps {
