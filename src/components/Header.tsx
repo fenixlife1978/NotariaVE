@@ -1,7 +1,7 @@
 import React from 'react';
 import { Scale, FileText, Calculator, Users, Settings, Plus, LogOut, ShieldCheck } from 'lucide-react';
 
-type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users';
+type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments';
 interface HeaderProps {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
@@ -16,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onNewDo
     { id: 'editor', label: 'Redactor', icon: <FileText className="w-4 h-4" /> },
     { id: 'calculator', label: 'Aranceles', icon: <Calculator className="w-4 h-4" /> },
     { id: 'clients', label: 'Clientes', icon: <Users className="w-4 h-4" /> },
+    { id: 'attachments', label: 'Adjuntos', icon: <FileText className="w-4 h-4" /> },
     ...(admin ? [{ id: 'settings' as Tab, label: 'Configuración', icon: <Settings className="w-4 h-4" /> }, { id: 'users' as Tab, label: 'Usuarios', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
   ];
   return (
