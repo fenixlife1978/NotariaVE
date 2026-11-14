@@ -170,3 +170,19 @@ test('preserves the previous backup and manifest when a replacement cannot be ve
   }
 });
 
+
+test('rejects hardlinks and Windows case aliases of the active SQLite database', () => {
+  const { assertNotActiveDatabasePath } = require('../electron/path-safety.cjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-path-safety-'));
+  try {
+    const active = path.join(dir, 'notariave.sqlite');
+    const alias = path.join(dir, 'backup-alias.sqlite');
+    fs.writeFileSync(active, 'active database');
+    fs.linkSync(active, alias);
+    assert.throws(() => assertNotActiveDatabasePath(alias, active), /base de datos activa/);
+    assert.throws(() => assertNotActiveDatabasePath(path.join(dir, 'NOTARIAVE.SQLITE'), active, 'win32'), /base de datos activa/);
+    assert.doesNotThrow(() => assertNotActiveDatabasePath(path.join(dir, 'separate-backup.sqlite'), active));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
