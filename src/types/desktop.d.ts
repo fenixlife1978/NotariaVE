@@ -10,6 +10,8 @@ declare global {
       listClients(): Promise<Array<Record<string, unknown>>>;
       saveClient(client: object): Promise<Record<string, unknown>>;
       deleteClient(id: string): Promise<{ deleted: boolean }>;
+      listDocuments(): Promise<Array<Record<string, any>>>;
+      saveDocument(input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }): Promise<Record<string, any>>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
     };
