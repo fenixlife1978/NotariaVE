@@ -1,8 +1,8 @@
 const DEMO_CLIENTS = new Map([
-  ['cli-1', 'Carlos Eduardo Mendoza Silva'],
-  ['cli-2', 'María Alejandra Hernández de Gómez'],
-  ['cli-3', 'Suministros & Servicios Industriales del Centro, C.A.'],
-  ['cli-4', 'Andrés Eloy Blanco Parra'],
+  ['cli-1', { fullName: 'Carlos Eduardo Mendoza Silva', idCardNumber: '14.892.341', rifNumber: '14892341-2', phone: '+58 414-230-8812', email: 'carlos.mendoza.ve@gmail.com' }],
+  ['cli-2', { fullName: 'María Alejandra Hernández de Gómez', idCardNumber: '18.423.905', rifNumber: '18423905-8', phone: '+58 412-987-6543', email: 'maria.hernandez.gomez@hotmail.com' }],
+  ['cli-3', { fullName: 'Suministros & Servicios Industriales del Centro, C.A.', idCardNumber: '15.120.443', rifNumber: '40891234-9', phone: '+58 241-871-2290', email: 'contacto@suministroscentroca.com' }],
+  ['cli-4', { fullName: 'Andrés Eloy Blanco Parra', idCardNumber: '12.345.678', rifNumber: '12345678-0', phone: '+58 424-112-9900', email: 'andreseloy.blanco@cantv.net' }],
 ]);
 
 function validateLegacyExport(value) {
@@ -29,13 +29,23 @@ function validateLegacyExport(value) {
 }
 
 function isSeedDemoClient(client) {
-  return DEMO_CLIENTS.get(String(client.id || '')) === String(client.fullName || '').trim();
+  const known = DEMO_CLIENTS.get(String(client.id || ''));
+  if (!known) return false;
+  return known.fullName === String(client.fullName || '').trim()
+    && known.idCardNumber === String(client.idCardNumber || '')
+    && known.rifNumber === String(client.rifNumber || '')
+    && known.phone === String(client.phone || '')
+    && known.email === String(client.email || '');
 }
 
 function isSeedDemoLawyer(lawyer) {
   return Boolean(lawyer)
     && lawyer.fullName === 'Dr. Luis Alejandro Briceño Rivas'
     && lawyer.inpreabogado === '148.902'
+    && lawyer.barAssociationState === 'Distrito Capital'
+    && lawyer.barRegNumber === '45.120'
+    && lawyer.officeAddress === 'Av. Francisco de Miranda, Edificio Centro Plaza, Torre B, Piso 14, Oficina 14-C, Los Palos Grandes, Caracas'
+    && lawyer.phone === '+58 212-285-4433'
     && lawyer.email === 'escritorio.briceno.asociados@gmail.com';
 }
 
@@ -43,7 +53,17 @@ function isSeedDemoCriteria(criteria) {
   return Boolean(criteria)
     && criteria.state === 'Distrito Capital'
     && criteria.municipality === 'Libertador'
+    && criteria.officeType === 'Notaría Pública'
     && criteria.officeName === 'Notaría Pública Segunda de Caracas (Distrito Capital)'
+    && Number(criteria.topMarginMm) === 40
+    && Number(criteria.bottomMarginMm) === 25
+    && Number(criteria.leftMarginMm) === 40
+    && Number(criteria.rightMarginMm) === 20
+    && criteria.fontFamily === 'Times New Roman'
+    && Number(criteria.fontSizePt) === 12
+    && Number(criteria.lineSpacing) === 1.5
+    && criteria.enableProtocolLines === false
+    && criteria.strictSarenFormatting === true
     && Number(criteria.bcvRate) === 68.5;
 }
 
