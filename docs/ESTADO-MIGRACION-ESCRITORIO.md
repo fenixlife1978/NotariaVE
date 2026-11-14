@@ -1,52 +1,51 @@
 # Estado de migración a escritorio — NotariaVE
 
-Fecha de corte: 2026-11-14
-Rama: `desktop-sqlite-migration`
-PR de revisión: #1 (borrador; no fusionar)
+Fecha: 2026-11-14  
+Rama de trabajo: `desktop-sqlite-migration`  
+Revisión: PR #1 en borrador. No fusionar todavía.
 
-## Implementado en esta fase
+## Implementado
 
-- Estructura inicial Electron con proceso principal y preload aislado.
-- Ventana con `nodeIntegration: false`, `contextIsolation: true`, `sandbox: true`; navegación superior limitada a la app local.
-- SQLite en el directorio de datos de la aplicación, fuera del directorio de instalación.
-- Apertura de DB con WAL, synchronous FULL, foreign keys, busy timeout y `quick_check`.
-- Migración inicial versionada con tablas de usuarios, clientes, documentos, configuración, auditoría, consultas externas y adjuntos.
-- Primer administrador local; contraseña con scrypt y sal aleatoria; login verificado en SQLite; sesión en memoria, sin persistirla en el renderer.
-- Clientes, perfil profesional y criterios SAREN ya leen/escriben a través de IPC SQLite.
-- Expedientes/documentos: guardado y reapertura en SQLite, búsqueda por título y comparecientes, persistencia del formulario completo y texto editado, contador de revisiones y auditoría de creación/modificación.
-- Respaldos: copia SQLite verificada, manifiesto SHA-256, comprobaciones `quick_check`/`foreign_key_check`, conteos de tablas y validación de administrador activo. Restauración con copia automática previa, reemplazo controlado y recuperación del archivo anterior si falla la apertura.
-- Migración de la versión web: exportación JSON local de clientes/perfil/criterios, previsualización antes de importar, deduplicación por ID/cédula/RIF, omisión de datos demo conocidos con opción explícita para incluirlos, importación transaccional y auditoría. La sesión antigua no se importa.
-- Datos iniciales: eliminados los clientes y perfil profesional ficticios; el perfil y criterios empiezan vacíos, sin tasa BCV ficticia.
-- Respaldos SQLite: copia consistente mediante API de backup de SQLite, verificación `quick_check` y `foreign_key_check`, manifiesto lateral con SHA-256 y conteos; restauración con validación previa y copia de seguridad automática del estado actual antes del reemplazo.
-- Eliminados datos de ejemplo de clientes y perfil profesional; el formulario documental ya no precarga identificaciones, domicilios, vehículos ni inmuebles ficticios.
-- Retiradas llamadas Gemini del runtime de escritorio; botones de IA deshabilitados mientras no exista consentimiento explícito.
-- Retirado Google Fonts; eliminado el servidor Express/Gemini y sus dependencias del runtime.
-- Tasa BCV ficticia inicial retirada; el estimador requiere una tasa introducida manualmente y se identifica expresamente como no oficial.
-- Pruebas Node iniciales para esquema, WAL, foreign keys y migración idempotente.
-- Workflow GitHub Actions para pruebas SQLite, TypeScript y build Vite.
+- Aplicación de escritorio Electron con preload aislado, `contextIsolation`, sandbox y `nodeIntegration: false`.
+- SQLite local en el directorio de datos del usuario, fuera de la carpeta de instalación.
+- Esquema versionado, WAL, `synchronous=FULL`, claves foráneas, busy timeout y `quick_check`.
+- Administrador inicial local, contraseñas con scrypt y sal aleatoria, autenticación SQLite y sesión en memoria.
+- Clientes, perfil profesional y criterios SAREN persistidos por IPC en SQLite.
+- Expedientes: guardado del formulario completo y texto de trabajo, búsqueda por título/comparecientes, reapertura, revisiones y auditoría de creación/modificación.
+- Respaldos: copia SQLite, manifiesto SHA-256, comprobación de integridad y relaciones, verificación de tablas y administrador activo.
+- Restauración: selección local del respaldo, validación del manifiesto, copia de seguridad automática previa y reemplazo con recuperación del archivo anterior si falla la apertura. Falta probar este flujo en la aplicación Electron instalada.
+- Importador legado: archivo JSON local, previsualización, deduplicación por ID/cédula/RIF, transacción SQLite y bitácora. Los datos demo conocidos se omiten por defecto, con opción expresa de incluirlos.
+- Se creó la guía [Exportar datos anteriores](EXPORTAR-DATOS-ANTERIORES.md). La versión web antigua no guardaba borradores del editor en localStorage; el exportador cubre clientes, perfil y criterios.
+- Se retiraron clientes y perfil ficticios de los valores iniciales. La tasa BCV empieza vacía/cero y el estimador se identifica como no oficial.
+- Se desactivaron las llamadas Gemini y se retiró Express/Gemini del runtime. Google Fonts también fue eliminado.
+- Copias y migración están reservadas al administrador local.
 
-## Pendiente — bloquea la aprobación
+## Validación ejecutada
 
-1. CI anterior: 4 pruebas SQLite, TypeScript y build Vite pasaron; el job Windows también generó un instalador NSIS y subió un artefacto. Ese artefacto corresponde a un commit anterior a la última incorporación del importador legado. La validación de los cambios de importación y las últimas pruebas de backup está pendiente.
-2. Validar el ciclo de documentos en la aplicación Electron real: crear, guardar, cerrar, volver a abrir, editar y verificar el incremento de revisión. La capa IPC y la interfaz ya están implementadas; falta prueba funcional de escritorio.
-3. Gestión de usuarios adicionales, cambio/reset de contraseña, roles y permisos efectivos.
-4. Adjuntos locales (idealmente BLOB SQLite para que entren en los respaldos) con hashes y recuperación.
-5. Probar en Electron real el flujo de backup/restauración, incluyendo restauración interrumpida y recuperación del archivo original.
-6. Probar importación real desde la exportación del navegador anterior y verificar registros de usuario; la versión web anterior no guardaba los borradores del editor en localStorage.
-6. Verificar importación real de datos previos del navegador con exportación, previsualización, deduplicación y confirmación; nunca importar datos de demostración sin consentimiento explícito.
-7. Migraciones futuras con backup previo y rollback.
-8. Consultas optativas BCV/SAREN con fuente, fecha, caché local, expiración y consentimiento; ninguna consulta debe bloquear operaciones.
-9. Revisión de cada regla tarifaria, ordenanza y referencia legal. El estimador se marca no oficial y no debe utilizarse como liquidación legal definitiva.
-10. Pruebas reales en Windows: instalación limpia, actualización conservando DB, modo avión, cierre inesperado, backup/restore y desinstalación conservando datos.
+- Una ejecución de GitHub Actions correspondiente al commit `19283f253a18faa0602c49fddd47a57030caae81` aprobó:
+  - 4 pruebas SQLite.
+  - TypeScript.
+  - Build de producción Vite.
+  - Pruebas SQLite y TypeScript en Windows.
+  - Generación del instalador NSIS x64 y subida del artefacto.
+- Ese instalador se generó antes de incorporar el importador de datos legados y las últimas restricciones de respaldo. No debe tratarse como instalador final.
+- Los últimos cambios de importación, datos iniciales vacíos y controles adicionales de backup necesitan una nueva ejecución CI.
+- No se ha probado manualmente el instalador en un equipo Windows ni el ciclo completo de restauración/importación en Electron.
+- Vercel no es runtime ni base de datos del producto. El check Vercel del repositorio no es criterio de aceptación para esta arquitectura.
 
-## Verificación disponible
+## Pendiente — bloquea producción
 
-- Primer workflow GitHub Actions: falló en instalación de dependencias porque Vite 8.3.8 exigía esbuild ^0.27.0 o ^0.28.0; se actualizó a ^0.28.2.
-- Siguiente ejecución: instalación correcta y 3/3 pruebas SQLite aprobadas. TypeScript falló en tipos de clientes y payload de documentos; se corrigieron las declaraciones y falta confirmar una nueva ejecución. La compilación Vite quedó omitida por el fallo previo de TypeScript.
-- Revisión de código a través de GitHub; no se ejecutó en esta sesión una compilación local ni pruebas de escritorio.
-- El estado Vercel observado en el commit de trabajo no es criterio de aceptación para este producto y no se usó como runtime ni base de datos.
-- El PR #1 está en borrador y no está fusionado con `main`.
+1. Confirmar CI completo de los cambios más recientes y regenerar el instalador Windows.
+2. Probar en Electron: crear expediente, guardar, cerrar, reabrir, editar y verificar revisión/auditoría.
+3. Probar crear respaldo, mover juntos `.sqlite` y `.manifest.json`, restaurar y verificar datos.
+4. Probar restauración fallida/interrumpida y confirmar recuperación del archivo previo.
+5. Ejecutar exportación real desde el navegador anterior e importar en SQLite; revisar clientes, perfil y criterios antes de borrar o abandonar el origen.
+6. Implementar adjuntos locales; preferible almacenar BLOB en SQLite para que formen parte de un único respaldo.
+7. Completar administración de usuarios, cambio/restablecimiento de contraseñas, roles y permisos efectivos.
+8. Añadir consultas externas optativas BCV/SAREN con fuente, fecha, caché y consentimiento, sin bloquear operaciones offline.
+9. Revisar jurídicamente cada tasa, ordenanza y regla del estimador.
+10. Pruebas manuales Windows: instalación limpia, actualización conservando DB, modo avión, cierre inesperado, backup/restore y desinstalación conservando datos.
 
-## Dictamen de fase
+## Dictamen
 
-**Base técnica iniciada; producto todavía no apto para producción.** Ya existe el esqueleto de escritorio y la primera capa SQLite/autenticación/clientes/configuración, pero faltan gestión de usuarios/roles, adjuntos, prueba real de importación y restauración en Electron, y pruebas manuales de distribución Windows; los flujos nuevos de documentos y respaldo requieren validación funcional en escritorio. No publicar ni fusionar todavía.
+**Migración en curso; todavía no apto para producción profesional.** La base de escritorio, autenticación local, expedientes, respaldos y ruta de importación ya están implementados en código. Falta confirmar CI de los últimos cambios, pruebas funcionales reales en Windows y completar usuarios/roles y adjuntos. No fusionar ni publicar todavía.
