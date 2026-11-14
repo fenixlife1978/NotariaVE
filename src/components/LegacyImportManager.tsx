@@ -13,6 +13,7 @@ type ImportResult = {
 export const LegacyImportManager: React.FC<{ onImported: () => Promise<void> }> = ({ onImported }) => {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
+  const [includeDemoRecords, setIncludeDemoRecords] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -20,7 +21,10 @@ export const LegacyImportManager: React.FC<{ onImported: () => Promise<void> }> 
     setBusy(true); setError(''); setMessage('');
     try {
       const result = await window.notariaDesktop.selectLegacyImport();
-      if (!result.canceled && result.token && result.fileName) setPreview(result as Preview);
+      if (!result.canceled && result.token && result.fileName) {
+        setPreview(result as Preview);
+        setIncludeDemoRecords(false);
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No se pudo revisar el archivo.');
     } finally { setBusy(false); }
@@ -28,11 +32,12 @@ export const LegacyImportManager: React.FC<{ onImported: () => Promise<void> }> 
 
   const importData = async () => {
     if (!preview) return;
-    const accepted = window.confirm('Se importarán los clientes que no estén duplicados. El perfil profesional y los criterios SAREN del archivo reemplazarán la configuración local actual si existen. Los registros de demostración conocidos y la sesión antigua se excluyen. No se borrarán datos existentes. ¿Desea continuar?');
+    const demoChoice = includeDemoRecords ? 'Se incluirán también los registros de demostración detectados porque usted lo ha marcado.' : 'Los registros de demostración conocidos se omitirán.';
+    const accepted = window.confirm('Se importarán los clientes que no estén duplicados. El perfil profesional y los criterios SAREN del archivo reemplazarán la configuración local actual si existen. ' + demoChoice + ' La sesión antigua no se importa y no se borrarán datos existentes. ¿Desea continuar?');
     if (!accepted) return;
     setBusy(true); setError(''); setMessage('');
     try {
-      const result: ImportResult = await window.notariaDesktop.importLegacyData(preview.token);
+      const result: ImportResult = await window.notariaDesktop.importLegacyData(preview.token, { includeDemoRecords });
       await onImported();
       setPreview(null);
       setMessage('Migración completada: ' + result.importedClients + ' clientes importados; ' + result.skippedDuplicates + ' duplicados omitidos; ' + result.skippedDemoClients + ' clientes de demostración omitidos. ' + (result.lawyerImported ? 'Perfil profesional importado. ' : '') + (result.criteriaImported ? 'Criterios notariales importados.' : ''));
@@ -64,6 +69,12 @@ export const LegacyImportManager: React.FC<{ onImported: () => Promise<void> }> 
           </div>
           {(preview.suspectedDemoClients > 0 || preview.suspectedDemoLawyer || preview.suspectedDemoCriteria) && <p className="text-xs text-amber-700 dark:text-amber-300 flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" />Se detectaron valores de demostración conocidos; se omitirán para no incorporarlos como datos profesionales.</p>}
           <p className="text-[11px] text-slate-500">Los clientes duplicados se omiten sin sobrescribir los registros locales. Los datos nuevos se importan en una transacción SQLite y quedan registrados en la auditoría.</p>
+          {(preview.suspectedDemoClients > 0 || preview.suspectedDemoLawyer || preview.suspectedDemoCriteria) && (
+            <label className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
+              <input type="checkbox" checked={includeDemoRecords} onChange={(event) => setIncludeDemoRecords(event.target.checked)} className="mt-0.5" />
+              <span>Incluir también los valores de demostración detectados. Márquelo solo si reconoce que esos registros contienen información suya modificada.</span>
+            </label>
+          )}
           <button type="button" onClick={importData} disabled={busy} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-3.5 py-2 text-xs font-bold"><ShieldCheck className="w-4 h-4" /> Confirmar importación a SQLite</button>
         </div>
       )}
