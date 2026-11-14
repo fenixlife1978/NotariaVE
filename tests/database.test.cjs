@@ -187,7 +187,8 @@ test('rejects hardlinks and Windows case aliases of the active SQLite database',
   }
 });
 
-\nconst { assertRoleAllowed, assertValidRole, assertAdminRemainsActive, VALID_ROLES } = require('../electron/access-policy.cjs');
+
+const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive, VALID_ROLES } = require('../electron/access-policy.cjs');
 
 test('enforces the four local roles and denies all unlisted roles', () => {
   assert.deepEqual(VALID_ROLES, ['admin', 'abogado', 'asistente', 'consulta']);
