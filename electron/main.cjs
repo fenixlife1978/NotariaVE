@@ -197,6 +197,7 @@ function registerIpc() {
     if (selection.canceled || selection.filePaths.length === 0) return { canceled: true };
     const selectedPath = selection.filePaths[0];
     const verified = verifyBackup(selectedPath);
+    writeAudit(actor.id, 'backup_restore_requested', 'database', null, { fileName: verified.fileName, sha256: verified.sha256 });
     const backupDirectory = path.join(userDataPath, 'data', 'backups');
     fs.mkdirSync(backupDirectory, { recursive: true });
     const safetyPath = path.join(backupDirectory, `NotariaVE-antes-de-restaurar-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
@@ -232,7 +233,9 @@ function registerIpc() {
         try { fs.unlinkSync(displacedPath); } catch (cleanupError) { console.error('No se pudo retirar el archivo desplazado:', cleanupError); }
       }
       activeSession = null;
-      if (fs.existsSync(stagedManifest)) fs.unlinkSync(stagedManifest);
+      if (fs.existsSync(stagedManifest)) {
+        try { fs.unlinkSync(stagedManifest); } catch (cleanupError) { console.error('No se pudo retirar el manifiesto temporal:', cleanupError); }
+      }
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
       }, 250);
