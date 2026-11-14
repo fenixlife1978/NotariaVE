@@ -216,3 +216,32 @@ test('prevents self-lockout and removal of the last active administrator', () =>
     nextRole: 'admin', nextActive: 1, otherActiveAdmins: 0,
   }));
 });
+
+test('persists audit events and actor references across database reopen', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-audit-'));
+  try {
+    let opened = openDatabase(dir);
+    const timestamp = new Date().toISOString();
+    opened.db.prepare("INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('audit-admin', 'auditor', 'Auditor local', 'admin', ?, ?, ?, ?)").run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+    opened.db.prepare("INSERT INTO audit_log(actor_user_id, action, entity_type, entity_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run('audit-admin', 'document_created', 'document', 'doc-audit-1', JSON.stringify({ title: 'Poder de prueba' }), timestamp);
+    opened.db.close();
+
+    opened = openDatabase(dir);
+    try {
+      const event = opened.db.prepare(`
+        SELECT a.action, a.entity_id AS entityId, a.details_json AS detailsJson, u.username
+        FROM audit_log a LEFT JOIN users u ON u.id = a.actor_user_id
+        ORDER BY a.id DESC LIMIT 1
+      `).get();
+      assert.equal(event.action, 'document_created');
+      assert.equal(event.entityId, 'doc-audit-1');
+      assert.equal(event.username, 'auditor');
+      assert.equal(JSON.parse(event.detailsJson).title, 'Poder de prueba');
+    } finally {
+      opened.db.close();
+    }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
