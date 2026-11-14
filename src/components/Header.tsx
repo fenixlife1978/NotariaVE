@@ -1,7 +1,7 @@
 import React from 'react';
 import { Scale, FileText, Calculator, Users, Settings, Plus, LogOut, ShieldCheck } from 'lucide-react';
 
-type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments';
+type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments' | 'profile';
 interface HeaderProps {
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
@@ -12,11 +12,13 @@ interface HeaderProps {
 }
 export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onNewDocument, bcvRate, currentUser, onLogout }) => {
   const admin = currentUser?.role === 'admin';
+  const lawyer = currentUser?.role === 'abogado';
   const nav: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'editor', label: 'Redactor', icon: <FileText className="w-4 h-4" /> },
     { id: 'calculator', label: 'Aranceles', icon: <Calculator className="w-4 h-4" /> },
     { id: 'clients', label: 'Clientes', icon: <Users className="w-4 h-4" /> },
     { id: 'attachments', label: 'Adjuntos', icon: <FileText className="w-4 h-4" /> },
+    ...(lawyer ? [{ id: 'profile' as Tab, label: 'Mi perfil', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
     ...(admin ? [{ id: 'settings' as Tab, label: 'Configuración', icon: <Settings className="w-4 h-4" /> }, { id: 'users' as Tab, label: 'Usuarios', icon: <ShieldCheck className="w-4 h-4" /> }] : []),
   ];
   return (
