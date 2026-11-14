@@ -97,9 +97,9 @@ test('creates a verifiable backup with manifest and detects tampering', async ()
 });
 
 test('validates legacy browser export and identifies known demo records', () => {
-  const demoClient = { id: 'cli-1', fullName: 'Carlos Eduardo Mendoza Silva' };
-  const demoLawyer = { fullName: 'Dr. Luis Alejandro Briceño Rivas', inpreabogado: '148.902', email: 'escritorio.briceno.asociados@gmail.com' };
-  const demoCriteria = { state: 'Distrito Capital', municipality: 'Libertador', officeName: 'Notaría Pública Segunda de Caracas (Distrito Capital)', bcvRate: 68.5 };
+  const demoClient = { id: 'cli-1', fullName: 'Carlos Eduardo Mendoza Silva', idCardNumber: '14.892.341', rifNumber: '14892341-2', phone: '+58 414-230-8812', email: 'carlos.mendoza.ve@gmail.com' };
+  const demoLawyer = { fullName: 'Dr. Luis Alejandro Briceño Rivas', inpreabogado: '148.902', barAssociationState: 'Distrito Capital', barRegNumber: '45.120', officeAddress: 'Av. Francisco de Miranda, Edificio Centro Plaza, Torre B, Piso 14, Oficina 14-C, Los Palos Grandes, Caracas', phone: '+58 212-285-4433', email: 'escritorio.briceno.asociados@gmail.com' };
+  const demoCriteria = { state: 'Distrito Capital', municipality: 'Libertador', officeType: 'Notaría Pública', officeName: 'Notaría Pública Segunda de Caracas (Distrito Capital)', topMarginMm: 40, bottomMarginMm: 25, leftMarginMm: 40, rightMarginMm: 20, fontFamily: 'Times New Roman', fontSizePt: 12, lineSpacing: 1.5, enableProtocolLines: false, strictSarenFormatting: true, bcvRate: 68.5 };
   const parsed = validateLegacyExport({
     format: 'notariave-legacy-export',
     version: 1,
