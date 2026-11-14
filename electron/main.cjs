@@ -6,6 +6,7 @@ const { randomUUID, randomBytes, scryptSync, timingSafeEqual, createHash } = req
 const { openDatabase } = require('./database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
+const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
 
 let mainWindow;
 let db;
@@ -18,20 +19,8 @@ const now = () => new Date().toISOString();
 const normalizeUsername = (value) => String(value || '').trim().toLowerCase();
 const safeUser = (row) => ({ id: row.id, username: row.username, fullName: row.full_name, role: row.role });
 
-function assertNotActiveDatabasePath(candidatePath) {
-  const normalize = (value) => {
-    const resolved = path.resolve(value);
-    try { return fs.realpathSync(resolved); } catch { return resolved; }
-  };
-  let candidate = normalize(candidatePath);
-  let active = normalize(databasePath);
-  if (process.platform === 'win32') {
-    candidate = candidate.toLowerCase();
-    active = active.toLowerCase();
-  }
-  if (candidate === active) {
-    throw new Error('Seleccione una ubicación distinta de la base de datos activa de NotariaVE.');
-  }
+function assertNotActivePath(candidatePath) {
+  return assertNotActiveDatabasePath(candidatePath, databasePath);
 }
 
 function requireSession() {
@@ -310,7 +299,7 @@ function registerIpc() {
       filters: [{ name: 'Base SQLite', extensions: ['sqlite'] }],
     });
     if (selection.canceled || !selection.filePath) return { canceled: true };
-    assertNotActiveDatabasePath(selection.filePath);
+    assertNotActivePath(selection.filePath);
     const result = await createVerifiedBackup(db, selection.filePath);
     writeAudit(actor.id, 'backup_created', 'database', null, { fileName: result.fileName, sha256: result.sha256 });
     return {
@@ -332,7 +321,7 @@ function registerIpc() {
     });
     if (selection.canceled || selection.filePaths.length === 0) return { canceled: true };
     const selectedPath = selection.filePaths[0];
-    assertNotActiveDatabasePath(selectedPath);
+    assertNotActivePath(selectedPath);
     const verified = verifyBackup(selectedPath);
     writeAudit(actor.id, 'backup_restore_requested', 'database', null, { fileName: verified.fileName, sha256: verified.sha256 });
     const backupDirectory = path.join(userDataPath, 'data', 'backups');
