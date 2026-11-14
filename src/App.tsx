@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { LoginPage } from './components/LoginPage';
 import { SetupAdminPage } from './components/SetupAdminPage';
+import { LicenseGate } from './components/LicenseGate';
 import { Header } from './components/Header';
 import { DocumentEditor } from './components/DocumentEditor';
 import { FeeCalculatorView } from './components/FeeCalculatorView';
@@ -23,13 +24,19 @@ import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } fro
 export default function App() {
   const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(null);
   const [needsInitialAdmin, setNeedsInitialAdmin] = useState(false);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
+  const [showLicenseGate, setShowLicenseGate] = useState(true);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [desktopError, setDesktopError] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
     window.notariaDesktop.getStatus()
-      .then((status) => setNeedsInitialAdmin(status.needsInitialAdmin))
+      .then((status) => {
+        setNeedsInitialAdmin(status.needsInitialAdmin);
+        setLicenseStatus(status.license);
+        setShowLicenseGate(status.license.state !== 'active');
+      })
       .catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudo abrir la base de datos local.'))
       .finally(() => setIsCheckingAuth(false));
   }, []);
@@ -44,7 +51,7 @@ export default function App() {
   const [savedDocuments, setSavedDocuments] = useState<Array<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: any }>>([]);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || !licenseStatus?.allowed || showLicenseGate) return;
     let cancelled = false;
     setIsLoadingData(true);
     (async () => {
@@ -61,7 +68,19 @@ export default function App() {
       setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
     })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
-  }, [currentUser]);
+  }, [currentUser, licenseStatus?.allowed, showLicenseGate]);
+
+
+  useEffect(() => {
+    if (licenseStatus?.state !== 'trial' || showLicenseGate) return;
+    const timer = window.setInterval(() => {
+      window.notariaDesktop.getLicenseStatus().then((latest) => {
+        setLicenseStatus(latest);
+        if (!latest.allowed) setShowLicenseGate(true);
+      }).catch(() => undefined);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [licenseStatus?.state, showLicenseGate]);
 
   const handleRefreshLocalData = async () => {
     const [storedClients, storedLawyer, storedCriteria, storedDocuments] = await Promise.all([
@@ -171,6 +190,8 @@ export default function App() {
     return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center p-6"><div className="max-w-lg text-center"><h1 className="text-xl font-bold">No se pudo iniciar NotariaVE</h1><p className="mt-3 text-sm text-rose-300">{desktopError}</p><p className="mt-2 text-sm text-slate-400">La aplicación requiere su entorno de escritorio y su base SQLite local. No se intentará conectar a ningún servicio remoto.</p></div></main>;
   }
   if (needsInitialAdmin) return <SetupAdminPage onCreated={handleLogin} />;
+  if (!licenseStatus) return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Comprobando licencia local…</main>;
+  if (showLicenseGate || !licenseStatus.allowed) return <LicenseGate status={licenseStatus} onContinue={() => setShowLicenseGate(false)} onActivated={(status) => { setLicenseStatus(status); setShowLicenseGate(false); }} />;
   if (!currentUser) return <LoginPage onLogin={handleLogin} />;
   if (isLoadingData) return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Cargando datos desde SQLite local…</main>;
 
