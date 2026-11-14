@@ -106,6 +106,20 @@ function openDatabase(userDataPath) {
     migrate();
   }
 
+  const currentVersion = db.prepare('SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations').get().version;
+  if (currentVersion < 2) {
+    const migrate = db.transaction(() => {
+      db.exec(`
+        ALTER TABLE documents ADD COLUMN updated_by TEXT REFERENCES users(id);
+        ALTER TABLE documents ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;
+        CREATE INDEX documents_updated_at_idx ON documents(updated_at);
+        INSERT INTO schema_migrations(version, applied_at)
+        VALUES (2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+      `);
+    });
+    migrate();
+  }
+
   const integrity = db.pragma('quick_check');
   if (!Array.isArray(integrity) || integrity[0]?.quick_check !== 'ok') {
     db.close();
