@@ -32,6 +32,9 @@ import {
   ArrowRight,
   ShieldAlert,
   XCircle,
+  Save,
+  Search,
+  FolderOpen,
 } from 'lucide-react';
 import {
   ClientParty,
@@ -67,11 +70,22 @@ import { AiClauseModal } from './AiClauseModal';
 import { SarenComplianceModal } from './SarenComplianceModal';
 import { MissingLegalRequirementsModal } from './MissingLegalRequirementsModal';
 
+type SavedDocument = {
+  id: string;
+  title: string;
+  templateId: string;
+  updatedAt: string;
+  revision: number;
+  payload: { formData: DocumentFormData; customDraftText?: string; isRawEditing?: boolean };
+};
+
 interface DocumentEditorProps {
   clients: ClientParty[];
   lawyer: LawyerProfile;
   criteria: SarenCriteriaConfig;
   initialFormData?: DocumentFormData | null;
+  savedDocuments: SavedDocument[];
+  onSaveDocument: (input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }) => Promise<SavedDocument>;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -79,6 +93,8 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   lawyer,
   criteria,
   initialFormData,
+  savedDocuments,
+  onSaveDocument,
 }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
     initialFormData?.templateId || 'venta-vehiculo'
@@ -156,6 +172,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [showMissingRequirementsModal, setShowMissingRequirementsModal] = useState(false);
   const [isValidatorExpanded, setIsValidatorExpanded] = useState(false);
   const [isExportingWord, setIsExportingWord] = useState(false);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | undefined>();
+  const [documentSearch, setDocumentSearch] = useState('');
+  const [isSavingDocument, setIsSavingDocument] = useState(false);
+  const [documentSaveMessage, setDocumentSaveMessage] = useState('');
+
+
+  useEffect(() => {
+    if (!initialFormData) return;
+    setFormData(initialFormData);
+    setSelectedTemplateId(initialFormData.templateId);
+    setCurrentDocumentId(undefined);
+    setIsRawEditing(false);
+  }, [initialFormData]);
 
   // Generate draft text whenever form data or criteria changes
   const computedDraftText = useMemo(() => {
@@ -346,6 +375,50 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   };
 
+  const handleSaveDocument = async () => {
+    setIsSavingDocument(true);
+    setDocumentSaveMessage('');
+    try {
+      const saved = await onSaveDocument({
+        id: currentDocumentId,
+        title: formData.title,
+        templateId: formData.templateId,
+        payload: {
+          formData,
+          customDraftText: isRawEditing ? customDraftText : computedDraftText,
+          isRawEditing,
+        },
+      });
+      setCurrentDocumentId(saved.id);
+      setDocumentSaveMessage('Guardado en SQLite local · revisión ' + saved.revision);
+    } catch (error) {
+      setDocumentSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar el documento.');
+    } finally {
+      setIsSavingDocument(false);
+    }
+  };
+
+  const handleOpenSavedDocument = (saved: SavedDocument) => {
+    if (!saved.payload?.formData) {
+      setDocumentSaveMessage('El expediente guardado no contiene un formulario válido.');
+      return;
+    }
+    setFormData(saved.payload.formData);
+    setSelectedTemplateId(saved.payload.formData.templateId);
+    setCurrentDocumentId(saved.id);
+    setIsRawEditing(Boolean(saved.payload.isRawEditing));
+    setCustomDraftText(saved.payload.customDraftText || '');
+    setDocumentSaveMessage('Expediente abierto · revisión ' + saved.revision);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const filteredDocuments = savedDocuments.filter((document) => {
+    const query = documentSearch.trim().toLocaleLowerCase('es');
+    if (!query) return true;
+    const parties = [document.payload?.formData?.grantor?.fullName, document.payload?.formData?.grantee?.fullName].filter(Boolean).join(' ');
+    return [document.title, document.templateId, parties].join(' ').toLocaleLowerCase('es').includes(query);
+  });
+
   // Copy draft
   const handleCopy = () => {
     const textToCopy = isRawEditing ? customDraftText : computedDraftText;
@@ -427,6 +500,33 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         onSelectGrantee={handleSelectGranteeClient}
         onScrollToSection={handleScrollToSection}
       />
+
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><FolderOpen className="w-4 h-4 text-amber-500" /> Expedientes guardados</h2>
+            <p className="text-[11px] text-slate-500">Almacenados exclusivamente en la base SQLite de este equipo.</p>
+          </div>
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Buscar título o compareciente..." className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950" />
+          </div>
+        </div>
+        {documentSaveMessage && <p role="status" className="text-xs text-emerald-700 dark:text-emerald-300">{documentSaveMessage}</p>}
+        {filteredDocuments.length === 0 ? (
+          <p className="text-xs text-slate-500 py-2">{savedDocuments.length === 0 ? 'Todavía no hay expedientes guardados.' : 'No hay expedientes que coincidan con la búsqueda.'}</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 max-h-56 overflow-y-auto">
+            {filteredDocuments.map((document) => (
+              <button key={document.id} type="button" onClick={() => handleOpenSavedDocument(document)} className={`text-left rounded-lg border p-3 transition-colors ${currentDocumentId === document.id ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : 'border-slate-200 dark:border-slate-700 hover:border-amber-400'}`}>
+                <span className="block text-xs font-semibold text-slate-900 dark:text-white truncate">{document.title}</span>
+                <span className="block text-[10px] text-slate-500 mt-1">{document.templateId} · revisión {document.revision}</span>
+                <span className="block text-[10px] text-slate-400 mt-1">{new Date(document.updatedAt).toLocaleString('es-VE')}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* GENERADOR DINÁMICO DE DOCUMENTOS SAREN */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
@@ -2042,6 +2142,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button type="button" onClick={handleSaveDocument} disabled={isSavingDocument} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-bold">
+                <Save className="w-3.5 h-3.5" /> {isSavingDocument ? 'Guardando...' : currentDocumentId ? 'Guardar cambios' : 'Guardar expediente'}
+              </button>
               {/* Statutory Legal Validation Seal Badge */}
               {minLegalValidation.canExport ? (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">
