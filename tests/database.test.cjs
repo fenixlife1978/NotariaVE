@@ -134,8 +134,6 @@ test('stores attachment bytes inside SQLite and includes them in verified backup
       const backup = await createVerifiedBackup(second.db, backupPath);
       assert.equal(backup.counts.attachments, 1);
       assert.equal(verifyBackup(backupPath).counts.attachments, 1);
-      const backupDb = openDatabase(path.join(dir, 'restored-copy'));
-      backupDb.db.close();
     } finally { second.db.close(); }
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
