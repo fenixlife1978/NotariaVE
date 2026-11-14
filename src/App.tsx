@@ -15,6 +15,7 @@ import { BackupManager } from './components/BackupManager';
 import { LegacyImportManager } from './components/LegacyImportManager';
 import { UserAdministration } from './components/UserAdministration';
 import { AttachmentManager } from './components/AttachmentManager';
+import { LawyerProfileSettings } from './components/LawyerProfileSettings';
 import { INITIAL_LAWYER, INITIAL_SAREN_CRITERIA } from './data/initialData';
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
@@ -32,7 +33,7 @@ export default function App() {
       .finally(() => setIsCheckingAuth(false));
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments' | 'profile'>('editor');
 
   const [clients, setClients] = useState<ClientParty[]>([]);
   const [lawyer, setLawyer] = useState<LawyerProfile>(INITIAL_LAWYER);
@@ -232,6 +233,7 @@ export default function App() {
         )}
 
         {activeTab === 'users' && currentUser.role === 'admin' && <UserAdministration />}
+        {activeTab === 'profile' && currentUser.role === 'abogado' && <LawyerProfileSettings lawyer={lawyer} onSave={handleUpdateLawyer} />}
         {activeTab === 'attachments' && <AttachmentManager documents={savedDocuments.map((doc) => ({ id: doc.id, title: doc.title }))} clients={clients.map((client) => ({ id: client.id, title: client.fullName }))} role={currentUser.role} />}
       </main>
 
