@@ -18,6 +18,7 @@ Revisión: PR #1 en borrador. No fusionar todavía.
 - Usuarios y roles: administración local de cuentas, creación, activación/desactivación, cambio de perfil y restablecimiento de contraseña. Contraseñas scrypt con sal aleatoria. Permisos verificados en el proceso principal de Electron: administrador, abogado, asistente y solo consulta.
 - Adjuntos: migración de esquema v3 y almacenamiento BLOB dentro de SQLite; listado por expediente/cliente, exportación con verificación SHA-256 y eliminación auditada. Límite 20 MB y lista permitida de formatos PDF, Office/ODT/RTF/TXT e imágenes JPG/PNG/WebP.
 - Interfaz de administración de usuarios y de adjuntos integrada. La navegación de configuración/usuarios se limita visualmente al administrador; los controles críticos también se validan en Electron.
+- Frontera IPC reforzada: todos los canales se registran mediante un guard común que rechaza emisores distintos de la ventana principal y frames cuyo origen no coincide con el renderer local empaquetado (`file://`) o el servidor loopback de desarrollo (`127.0.0.1:5173`).
 - Se reconstruyó el encabezado, que CI había detectado con sintaxis JSX rota en un commit anterior.
 - Se creó la guía [Exportar datos anteriores](EXPORTAR-DATOS-ANTERIORES.md). La versión web antigua no guardaba borradores del editor en localStorage; el exportador cubre clientes, perfil y criterios.
 - Se retiraron clientes y perfil ficticios de los valores iniciales. La tasa BCV empieza vacía/cero y el estimador se identifica como no oficial.
