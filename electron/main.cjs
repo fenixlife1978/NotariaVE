@@ -28,11 +28,13 @@ function requireSession() {
   return user;
 }
 
-function requireAdmin() {
+function requireRole(...roles) {
   const user = requireSession();
-  if (user.role !== 'admin') throw new Error('Esta operación está reservada al administrador local.');
+  if (!roles.includes(user.role)) throw new Error('Su perfil no tiene permiso para realizar esta operación.');
   return user;
 }
+
+function requireAdmin() { return requireRole('admin'); }
 
 function writeAudit(actorId, action, entityType, entityId, details = {}) {
   db.prepare(`
@@ -99,7 +101,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('clients:save', (_event, client = {}) => {
-    const actor = requireSession();
+    const actor = requireRole('admin', 'abogado', 'asistente');
     const id = String(client.id || randomUUID()).slice(0, 80);
     const fullName = String(client.fullName || '').trim();
     if (fullName.length < 2 || fullName.length > 200) throw new Error('El nombre del cliente no es válido.');
@@ -117,7 +119,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('clients:delete', (_event, id) => {
-    const actor = requireSession();
+    const actor = requireRole('admin', 'abogado');
     const clientId = String(id || '');
     if (!clientId || clientId.length > 80) throw new Error('Identificador de cliente no válido.');
     const result = db.prepare('DELETE FROM clients WHERE id = ?').run(clientId);
@@ -137,7 +139,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('documents:save', (_event, input = {}) => {
-    const actor = requireSession();
+    const actor = requireRole('admin', 'abogado', 'asistente');
     const id = String(input.id || randomUUID()).trim();
     const title = String(input.title || '').trim();
     const templateId = String(input.templateId || '').trim();
@@ -395,6 +397,60 @@ function registerIpc() {
     return transaction();
   });
 
+  ipcMain.handle('users:list', () => {
+    requireAdmin();
+    return db.prepare('SELECT id, username, full_name AS fullName, role, active, created_at AS createdAt, updated_at AS updatedAt FROM users ORDER BY username COLLATE NOCASE').all()
+      .map((row) => ({ ...row, active: row.active === 1 }));
+  });
+
+  ipcMain.handle('users:create', (_event, input = {}) => {
+    const actor = requireAdmin();
+    const username = normalizeUsername(input.username);
+    const fullName = String(input.fullName || '').trim();
+    const role = String(input.role || '');
+    const password = String(input.password || '');
+    if (!/^[a-z0-9._-]{3,64}$/.test(username)) throw new Error('El usuario debe tener entre 3 y 64 caracteres válidos.');
+    if (fullName.length < 3 || fullName.length > 120) throw new Error('Indique un nombre completo válido.');
+    if (!['admin', 'abogado', 'asistente', 'consulta'].includes(role)) throw new Error('Perfil de usuario no permitido.');
+    if (password.length < 12 || password.length > 256) throw new Error('La contraseña debe tener entre 12 y 256 caracteres.');
+    if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) throw new Error('Ya existe un usuario con ese nombre.');
+    const id = randomUUID(), salt = randomBytes(16), hash = scryptSync(password, salt, 64), timestamp = now();
+    db.prepare('INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, username, fullName, role, salt, hash, timestamp, timestamp);
+    writeAudit(actor.id, 'user_created', 'user', id, { username, role });
+    return { id, username, fullName, role, active: true };
+  });
+
+  ipcMain.handle('users:update', (_event, input = {}) => {
+    const actor = requireAdmin();
+    const id = String(input.id || '');
+    const target = db.prepare('SELECT id, username, role, active FROM users WHERE id = ?').get(id);
+    if (!target) throw new Error('El usuario seleccionado no existe.');
+    const role = input.role === undefined ? target.role : String(input.role);
+    const active = input.active === undefined ? target.active : (input.active ? 1 : 0);
+    const fullName = input.fullName === undefined ? null : String(input.fullName).trim();
+    const password = input.password === undefined ? '' : String(input.password);
+    if (!['admin', 'abogado', 'asistente', 'consulta'].includes(role)) throw new Error('Perfil de usuario no permitido.');
+    if (fullName !== null && (fullName.length < 3 || fullName.length > 120)) throw new Error('Nombre completo no válido.');
+    if (password && (password.length < 12 || password.length > 256)) throw new Error('La nueva contraseña debe tener entre 12 y 256 caracteres.');
+    if (id === actor.id && (active !== 1 || role !== 'admin')) throw new Error('No puede desactivar ni quitarse el perfil administrador durante su propia sesión.');
+    if (target.role === 'admin' && (active !== 1 || role !== 'admin')) {
+      const otherAdmins = db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1 AND id <> ?").get(id).count;
+      if (otherAdmins === 0) throw new Error('Debe existir al menos un administrador local activo.');
+    }
+    const timestamp = now();
+    if (password) {
+      const salt = randomBytes(16), hash = scryptSync(password, salt, 64);
+      db.prepare('UPDATE users SET role = ?, active = ?, full_name = COALESCE(?, full_name), password_salt = ?, password_hash = ?, updated_at = ? WHERE id = ?')
+        .run(role, active, fullName, salt, hash, timestamp, id);
+    } else {
+      db.prepare('UPDATE users SET role = ?, active = ?, full_name = COALESCE(?, full_name), updated_at = ? WHERE id = ?')
+        .run(role, active, fullName, timestamp, id);
+    }
+    writeAudit(actor.id, 'user_updated', 'user', id, { username: target.username, role, active: Boolean(active), passwordReset: Boolean(password) });
+    return { updated: true };
+  });
+
   ipcMain.handle('settings:get', (_event, key) => {
     requireSession();
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
@@ -404,10 +460,11 @@ function registerIpc() {
   });
 
   ipcMain.handle('settings:save', (_event, input = {}) => {
-    const actor = requireSession();
+    const actor = requireRole('admin', 'abogado');
     const key = String(input.key || '');
     const allowed = new Set(['lawyer_profile', 'saren_criteria']);
     if (!allowed.has(key)) throw new Error('Parámetro no permitido.');
+    if (key === 'saren_criteria' && actor.role !== 'admin') throw new Error('Solo el administrador puede modificar los criterios generales SAREN.');
     const value = JSON.stringify(input.value ?? null);
     db.prepare(`
       INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
