@@ -14,6 +14,7 @@ PR de revisión: #1 (borrador; no fusionar)
 - Primer administrador local; contraseña con scrypt y sal aleatoria; login verificado en SQLite; sesión en memoria, sin persistirla en el renderer.
 - Clientes, perfil profesional y criterios SAREN ya leen/escriben a través de IPC SQLite.
 - Expedientes/documentos: guardado y reapertura en SQLite, búsqueda por título y comparecientes, persistencia del formulario completo y texto editado, contador de revisiones y auditoría de creación/modificación.
+- Respaldos SQLite: copia consistente mediante API de backup de SQLite, verificación `quick_check` y `foreign_key_check`, manifiesto lateral con SHA-256 y conteos; restauración con validación previa y copia de seguridad automática del estado actual antes del reemplazo.
 - Eliminados datos de ejemplo de clientes y perfil profesional; el formulario documental ya no precarga identificaciones, domicilios, vehículos ni inmuebles ficticios.
 - Retiradas llamadas Gemini del runtime de escritorio; botones de IA deshabilitados mientras no exista consentimiento explícito.
 - Retirado Google Fonts; eliminado el servidor Express/Gemini y sus dependencias del runtime.
@@ -27,7 +28,7 @@ PR de revisión: #1 (borrador; no fusionar)
 2. Validar el ciclo de documentos en la aplicación Electron real: crear, guardar, cerrar, volver a abrir, editar y verificar el incremento de revisión. La capa IPC y la interfaz ya están implementadas; falta prueba funcional de escritorio.
 3. Gestión de usuarios adicionales, cambio/reset de contraseña, roles y permisos efectivos.
 4. Adjuntos locales con escritura atómica, hashes y recuperación.
-5. Copias de seguridad y restauración verificadas.
+5. Probar en Electron real el flujo de backup/restauración, incluyendo restauración interrumpida y recuperación del archivo original.
 6. Importador de datos previos del navegador con exportación, previsualización, deduplicación y confirmación; nunca importar datos de demostración.
 7. Migraciones futuras con backup previo y rollback.
 8. Consultas optativas BCV/SAREN con fuente, fecha, caché local, expiración y consentimiento; ninguna consulta debe bloquear operaciones.
@@ -44,4 +45,4 @@ PR de revisión: #1 (borrador; no fusionar)
 
 ## Dictamen de fase
 
-**Base técnica iniciada; producto todavía no apto para producción.** Ya existe el esqueleto de escritorio y la primera capa SQLite/autenticación/clientes/configuración, pero faltan persistencia completa de documentos, backups, usuarios/roles, importación y pruebas reales de distribución. No publicar ni fusionar todavía.
+**Base técnica iniciada; producto todavía no apto para producción.** Ya existe el esqueleto de escritorio y la primera capa SQLite/autenticación/clientes/configuración, pero faltan gestión de usuarios/roles, adjuntos, importación de datos previos y pruebas reales de distribución; los flujos nuevos de documentos y respaldo todavía requieren validación funcional en Electron/Windows. No publicar ni fusionar todavía.
