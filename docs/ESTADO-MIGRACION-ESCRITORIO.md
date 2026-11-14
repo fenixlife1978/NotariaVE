@@ -35,6 +35,8 @@ PR de revisión: #1 (borrador; no fusionar)
 
 ## Verificación disponible
 
+- Primer workflow GitHub Actions: falló en instalación de dependencias antes de ejecutar pruebas. Causa identificada: Vite 8.3.8 exige peer opcional esbuild ^0.27.0 o ^0.28.0 y el proyecto fijaba ^0.25.0. Se actualizó esbuild a ^0.28.2; queda pendiente confirmar una nueva ejecución completa.
+- La ejecución fallida no alcanzó las pruebas SQLite, TypeScript ni build Vite.
 - Revisión de código a través de GitHub; no se ejecutó en esta sesión una compilación local ni pruebas de escritorio.
 - El estado Vercel observado en el commit de trabajo no es criterio de aceptación para este producto y no se usó como runtime ni base de datos.
 - El PR #1 está en borrador y no está fusionado con `main`.
