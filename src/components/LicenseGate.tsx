@@ -67,7 +67,7 @@ export const LicenseGate: React.FC<Props> = ({ status, onContinue, onActivated }
 
   return (
     <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-[#020817] px-5 py-10 text-white"
-      style={{ backgroundImage: "linear-gradient(110deg, rgba(2,8,23,.50), rgba(3,13,35,.18) 52%, rgba(2,8,23,.45)), url('./login-background.svg')", backgroundPosition: 'center', backgroundSize: 'cover' }}>
+      style={{ backgroundImage: "linear-gradient(110deg, rgba(2,8,23,.08), rgba(3,13,35,.02) 52%, rgba(2,8,23,.10)), url('./login-background.svg')", backgroundPosition: 'center', backgroundSize: 'cover' }}>
       <section className="w-full max-w-[520px]">
         <div className="mb-7 flex justify-center">
           <img src="./notariave-logo-horizontal.svg" alt="Notaría VE" className="h-auto w-full max-w-[350px] drop-shadow-xl" />
