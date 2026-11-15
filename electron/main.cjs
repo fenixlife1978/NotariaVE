@@ -110,8 +110,10 @@ function registerIpc() {
       signal: AbortSignal.timeout(12000),
     }).catch(() => { throw new Error('No fue posible conectar con CRM-Sicoven. Verifique internet e inténtelo nuevamente.'); });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok || payload.ok !== true || !payload.license || !payload.activation) {
-      throw new Error(typeof payload.error === 'string' ? payload.error : 'CRM-Sicoven no pudo validar esta licencia.');
+    if (!response.ok || payload.ok !== true || !payload.license || !payload.activation ||
+        typeof payload.license.id !== 'string' || !payload.license.id.trim() ||
+        typeof payload.activation.id !== 'string' || !payload.activation.id.trim()) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : 'CRM-Sicoven no devolvió una activación válida para NotariaVE.');
     }
     saveLicenseActivation(db, { licenseId: payload.license.id, activationId: payload.activation.id,
       licenseName: payload.license.product || 'Licencia NotariaVE', offlineDays: payload.license.offlineDays });
