@@ -37,13 +37,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     <main
       className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-[#020817] px-5 py-12 text-white"
       style={{
-        backgroundImage: "linear-gradient(110deg, rgba(2,8,23,.46), rgba(3,13,35,.18) 52%, rgba(2,8,23,.42)), url('./login-background.svg')",
+        backgroundImage: "linear-gradient(110deg, rgba(2,8,23,.08), rgba(3,13,35,.02) 52%, rgba(2,8,23,.10)), url('./login-background.svg')",
         backgroundPosition: 'center',
         backgroundSize: 'cover',
         backgroundRepeat: 'no-repeat',
       }}
     >
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(9,29,67,.08),rgba(1,6,19,.34))]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,rgba(9,29,67,.02),rgba(1,6,19,.10))]" />
 
       <section className="w-full max-w-[430px]">
         <div className="mb-8 flex justify-center">
