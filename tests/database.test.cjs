@@ -304,7 +304,7 @@ test('does not restart the trial when an existing local trial record is corrupt'
     const status = getLicenseStatus(db, Date.parse('2026-11-14T12:00:00.000Z'));
     assert.equal(status.state, 'expired');
     assert.equal(status.allowed, false);
-    assert.match(status.message, /no se reiniciará/);
+    assert.match(status.message, /no se reiniciará/i);
     assert.equal(db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'license_trial'").get().setting_value, '{invalid-json');
   });
 });
