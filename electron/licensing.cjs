@@ -16,10 +16,13 @@ function writeSetting(db, key, value, timestamp) {
 
 function getLicenseStatus(db, nowMs = Date.now()) {
   const nowIso = new Date(nowMs).toISOString();
+  const trialRow = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('license_trial');
   let trial = readSetting(db, 'license_trial');
-  if (!trial || !Number.isFinite(Date.parse(trial.startedAt))) {
+  if (!trialRow) {
     trial = { startedAt: nowIso, lastSeenAt: nowIso };
     writeSetting(db, 'license_trial', trial, nowIso);
+  } else if (!trial || typeof trial !== 'object' || !Number.isFinite(Date.parse(trial.startedAt)) || !Number.isFinite(Date.parse(trial.lastSeenAt))) {
+    return { state: 'expired', allowed: false, trialDurationHours: 120, message: 'El registro de la prueba local está dañado. No se reiniciará el período gratuito; active una licencia o contacte soporte.' };
   }
 
   const lastSeenMs = Date.parse(trial.lastSeenAt || trial.startedAt);
@@ -69,11 +72,16 @@ function getLicenseStatus(db, nowMs = Date.now()) {
 }
 
 function saveLicenseActivation(db, activation, nowMs = Date.now()) {
+  const licenseId = String(activation?.licenseId || '').trim();
+  const activationId = String(activation?.activationId || '').trim();
+  if (!licenseId || licenseId.length > 160 || !activationId || activationId.length > 160) {
+    throw new Error('CRM-Sicoven devolvió datos de activación incompletos.');
+  }
   const nowIso = new Date(nowMs).toISOString();
   const record = {
     status: 'active',
-    licenseId: String(activation.licenseId),
-    activationId: String(activation.activationId),
+    licenseId,
+    activationId,
     licenseName: String(activation.licenseName || 'Licencia activa').slice(0, 160),
     offlineDays: Math.max(1, Math.min(30, Number(activation.offlineDays) || 7)),
     activatedAt: nowIso,
