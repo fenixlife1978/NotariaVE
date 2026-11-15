@@ -19,7 +19,7 @@ let pendingLegacyImport = null;
 let installationId;
 
 const CRM_ACTIVATION_URL = 'https://crm-sicoven.vercel.app/api/activations';
-const CRM_PLANS_URL = 'https://crm-sicoven.vercel.app/comprar';
+const CRM_PLANS_URL = 'https://crm-sicoven.vercel.app/comprar?product=NOTARIAVE_DESKTOP';
 const LICENSE_PRODUCT_CODE = 'NOTARIAVE_DESKTOP';
 
 function getInstallationId() {
