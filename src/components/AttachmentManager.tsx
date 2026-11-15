@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 type Attachment = { id: string; originalName: string; mimeType: string; sizeBytes: number; sha256: string; createdAt: string };
 type Option = { id: string; title: string };
 export const AttachmentManager: React.FC<{ documents: Option[]; clients: Option[]; role: string }> = ({ documents, clients, role }) => {
@@ -8,15 +8,23 @@ export const AttachmentManager: React.FC<{ documents: Option[]; clients: Option[
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const requestSequence = useRef(0);
   const canAdd = ['admin', 'abogado', 'asistente'].includes(role);
   const canDelete = ['admin', 'abogado'].includes(role);
   const options = entityType === 'document' ? documents : clients.map((c) => ({ ...c, title: c.title }));
-  useEffect(() => { setEntityId(options[0]?.id || ''); }, [entityType, documents.length, clients.length]);
+  useEffect(() => {
+    setEntityId((current) => options.some((option) => option.id === current) ? current : options[0]?.id || '');
+  }, [entityType, documents, clients]);
   const refresh = async () => {
+    const request = ++requestSequence.current;
     if (!entityId) { setItems([]); return; }
-    setItems(await window.notariaDesktop.listAttachments({ entityType, entityId }));
+    const nextItems = await window.notariaDesktop.listAttachments({ entityType, entityId });
+    if (request === requestSequence.current) setItems(nextItems);
   };
-  useEffect(() => { void refresh().catch((e) => setError(e instanceof Error ? e.message : 'No se pudieron cargar los adjuntos.')); }, [entityType, entityId]);
+  useEffect(() => {
+    setItems([]);
+    void refresh().catch((e) => setError(e instanceof Error ? e.message : 'No se pudieron cargar los adjuntos.'));
+  }, [entityType, entityId]);
   const add = async () => {
     setBusy(true); setError(''); setNotice('');
     try { const result = await window.notariaDesktop.addAttachment({ entityType, entityId }); if (!result.canceled) setNotice('Archivo guardado dentro de SQLite y vinculado al registro.'); await refresh(); }
