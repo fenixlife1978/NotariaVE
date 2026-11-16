@@ -7,6 +7,7 @@ const { openDatabase } = require('../electron/database.cjs');
 const { createVerifiedBackup, verifyBackup } = require('../electron/backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('../electron/legacy-import.cjs');
 const { TRIAL_DURATION_MS, getLicenseStatus, saveLicenseActivation } = require('../electron/licensing.cjs');
+const { recordBackupRestoreCompleted, recordAttachmentExported } = require('../electron/audit-events.cjs');
 
 function withTempDatabase(run) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-sqlite-'));
@@ -314,5 +315,48 @@ test('rejects activation responses without stable license and activation identif
     assert.throws(() => saveLicenseActivation(db, { licenseId: '', activationId: 'activation-1' }), /datos de activación incompletos/);
     assert.throws(() => saveLicenseActivation(db, { licenseId: 'license-1' }), /datos de activación incompletos/);
     assert.equal(db.prepare("SELECT COUNT(*) AS count FROM app_settings WHERE setting_key = 'license_activation'").get().count, 0);
+  });
+});
+
+
+test('records restore completion in the restored database even when the requesting user is absent', () => {
+  withTempDatabase((db) => {
+    const timestamp = new Date().toISOString();
+    db.prepare("INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('restore-admin', 'abogado', 'Abogado local', 'admin', ?, ?, ?, ?)")
+      .run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+
+    assert.equal(recordBackupRestoreCompleted(db,
+      { userId: 'restore-admin', username: 'abogado' },
+      { fileName: 'respaldo.sqlite', sha256: 'abc123' }), true);
+
+    const present = db.prepare("SELECT actor_user_id, details_json FROM audit_log WHERE action = 'backup_restore_completed'").get();
+    assert.equal(present.actor_user_id, 'restore-admin');
+    assert.equal(JSON.parse(present.details_json).restoredActorPresent, true);
+
+    assert.equal(recordBackupRestoreCompleted(db,
+      { userId: 'user-from-previous-database', username: 'abogado-anterior' },
+      { fileName: 'otro-respaldo.sqlite', sha256: 'def456' }), false);
+
+    const missing = db.prepare("SELECT actor_user_id, details_json FROM audit_log WHERE action = 'backup_restore_completed' ORDER BY id DESC LIMIT 1").get();
+    assert.equal(missing.actor_user_id, null);
+    assert.equal(JSON.parse(missing.details_json).requestedByUserId, 'user-from-previous-database');
+    assert.equal(JSON.parse(missing.details_json).requestedByUsername, 'abogado-anterior');
+    assert.equal(JSON.parse(missing.details_json).restoredActorPresent, false);
+  });
+});
+
+test('records attachment exports without storing attachment contents in the audit log', () => {
+  withTempDatabase((db) => {
+    const timestamp = new Date().toISOString();
+    db.prepare("INSERT INTO users(id, username, full_name, role, password_salt, password_hash, created_at, updated_at) VALUES ('export-admin', 'abogado', 'Abogado local', 'admin', ?, ?, ?, ?)")
+      .run(Buffer.alloc(16), Buffer.alloc(64), timestamp, timestamp);
+    const attachment = { id: 'attachment-1', entity_type: 'document', entity_id: 'document-1', original_name: 'poder.pdf' };
+    recordAttachmentExported(db, 'export-admin', attachment, 'poder-copia.pdf', 'sha256-value');
+    const event = db.prepare("SELECT action, entity_id, details_json FROM audit_log WHERE action = 'attachment_exported'").get();
+    assert.equal(event.action, 'attachment_exported');
+    assert.equal(event.entity_id, 'document-1');
+    assert.equal(JSON.parse(event.details_json).exportedFileName, 'poder-copia.pdf');
+    assert.equal(JSON.parse(event.details_json).sha256, 'sha256-value');
+    assert.equal(Object.hasOwn(JSON.parse(event.details_json), 'content'), false);
   });
 });
