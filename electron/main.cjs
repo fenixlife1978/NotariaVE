@@ -10,6 +10,7 @@ const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
 const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
 const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
+const { BCV_RATE_URL, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
 
 let mainWindow;
 let db;
@@ -669,6 +670,60 @@ function registerIpc() {
       LEFT JOIN users u ON u.id = a.actor_user_id
       ORDER BY a.id DESC LIMIT ? OFFSET ?
     `).all(limit, offset).map(row => ({ ...row, details: JSON.parse(row.detailsJson) }));
+  });
+
+  handleIpc('bcv:refresh', async () => {
+    const actor = requireSession();
+    const existing = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'saren_criteria'").get();
+    const criteria = existing ? JSON.parse(existing.setting_value) : {};
+    try {
+      const response = await fetch(BCV_RATE_URL, {
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error('BCV respondió HTTP ' + response.status + '.');
+      const record = parseBcvRatePayload(await response.json());
+      const updatedCriteria = { ...criteria, bcvRate: record.rate, bcvRateSource: record.source,
+        bcvRateSourceType: record.sourceType, bcvRateDate: record.effectiveDate,
+        bcvRateUpdatedAt: record.retrievedAt };
+      db.transaction(() => {
+        db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('saren_criteria', ?, ?)
+          ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
+          .run(JSON.stringify(updatedCriteria), now());
+        db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('bcv_rate_record', ?, ?)
+          ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
+          .run(JSON.stringify(record), now());
+        writeAudit(actor.id, 'bcv_rate_updated_automatically', 'exchange_rate', 'USD/VES',
+          { rate: record.rate, effectiveDate: record.effectiveDate, source: record.source });
+      })();
+      return { ok: true, criteria: updatedCriteria, record };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'No se pudo consultar la tasa BCV.' };
+    }
+  });
+
+  handleIpc('bcv:save-manual', (_event, input = {}) => {
+    const actor = requireRole('admin', 'abogado');
+    const rate = validateManualBcvRate(input.rate);
+    const existing = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'saren_criteria'").get();
+    const criteria = existing ? JSON.parse(existing.setting_value) : {};
+    const previous = Number(criteria.bcvRate) || null;
+    const timestamp = now();
+    const record = { rate, source: 'Edición manual del abogado', sourceType: 'manual',
+      effectiveDate: String(input.effectiveDate || timestamp.slice(0, 10)), publishedAt: null, retrievedAt: timestamp };
+    const updatedCriteria = { ...criteria, bcvRate: rate, bcvRateSource: record.source,
+      bcvRateSourceType: record.sourceType, bcvRateDate: record.effectiveDate, bcvRateUpdatedAt: timestamp };
+    db.transaction(() => {
+      db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('saren_criteria', ?, ?)
+        ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
+        .run(JSON.stringify(updatedCriteria), timestamp);
+      db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('bcv_rate_record', ?, ?)
+        ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
+        .run(JSON.stringify(record), timestamp);
+      writeAudit(actor.id, 'bcv_rate_edited_manually', 'exchange_rate', 'USD/VES',
+        { previousRate: previous, newRate: rate, effectiveDate: record.effectiveDate });
+    })();
+    return { ok: true, criteria: updatedCriteria, record };
   });
 
   handleIpc('settings:get', (_event, key) => {
