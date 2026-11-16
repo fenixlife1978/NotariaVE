@@ -25,7 +25,7 @@ declare global {
       listAuditEvents(input?: { limit?: number; offset?: number }): Promise<Array<{ id: number; actorUserId: string | null; actorUsername?: string; actorFullName?: string; action: string; entityType: string; entityId?: string; detailsJson: string; details: Record<string, unknown>; createdAt: string }>>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
-      refreshBcvRate(): Promise<{ ok: boolean; criteria?: import('./legal').SarenCriteriaConfig; record?: { rate: number; source: string; effectiveDate: string }; error?: string }>;
+      refreshBcvRate(input?: { force?: boolean }): Promise<{ ok: boolean; applied?: boolean; criteria?: import('./legal').SarenCriteriaConfig; record?: { rate: number; source: string; effectiveDate: string }; error?: string }>;
       saveManualBcvRate(input: { rate: number; effectiveDate?: string }): Promise<{ ok: boolean; criteria: import('./legal').SarenCriteriaConfig; record: { rate: number; source: string; effectiveDate: string } }>;
       listUsers(): Promise<Array<{ id: string; username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; active: boolean; createdAt: string; updatedAt: string }>>;
       createUser(input: { username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; password: string }): Promise<{ id: string; username: string; fullName: string; role: string; active: boolean }>;
