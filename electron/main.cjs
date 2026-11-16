@@ -10,7 +10,7 @@ const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
 const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
 const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
-const { BCV_RATE_URL, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
+const { getBcvRateUrl, getCaracasDate, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
 
 let mainWindow;
 let db;
@@ -676,12 +676,13 @@ function registerIpc() {
     const force = input.force === true;
     const actor = requireSession();
     try {
-      const response = await fetch(BCV_RATE_URL, {
+      const requestedDate = getCaracasDate();
+      const response = await fetch(getBcvRateUrl(requestedDate), {
         headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
         signal: AbortSignal.timeout(10000),
       });
       if (!response.ok) throw new Error('BCV respondió HTTP ' + response.status + '.');
-      const record = parseBcvRatePayload(await response.json());
+      const record = parseBcvRatePayload(await response.json(), requestedDate);
       // Re-read after the network request so a manual edit made while fetching is never overwritten.
       const existing = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'saren_criteria'").get();
       const criteria = existing ? JSON.parse(existing.setting_value) : {};
@@ -701,7 +702,7 @@ function registerIpc() {
           const changed = Number(criteria.bcvRate) !== record.rate || criteria.bcvRateDate !== record.effectiveDate ||
             criteria.bcvRateSourceType !== 'automatic';
           if (changed) writeAudit(actor.id, 'bcv_rate_updated_automatically', 'exchange_rate', 'USD/VES',
-            { rate: record.rate, effectiveDate: record.effectiveDate, source: record.source });
+            { rate: record.rate, requestedDate: record.requestedDate, effectiveDate: record.effectiveDate, source: record.source });
         }
       })();
       return { ok: true, applied: !preserveManual, criteria: updatedCriteria, record };
@@ -718,7 +719,7 @@ function registerIpc() {
     const previous = Number(criteria.bcvRate) || null;
     const timestamp = now();
     const record = { rate, source: 'Edición manual del abogado', sourceType: 'manual',
-      effectiveDate: String(input.effectiveDate || timestamp.slice(0, 10)), publishedAt: null, retrievedAt: timestamp };
+      effectiveDate: String(input.effectiveDate || getCaracasDate(new Date(timestamp))), publishedAt: null, retrievedAt: timestamp };
     const updatedCriteria = { ...criteria, bcvRate: rate, bcvRateSource: record.source,
       bcvRateSourceType: record.sourceType, bcvRateDate: record.effectiveDate, bcvRateUpdatedAt: timestamp };
     db.transaction(() => {
