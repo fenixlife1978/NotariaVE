@@ -68,14 +68,17 @@ export default function App() {
       setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
       const initialCriteria = (storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA;
       setCriteria(initialCriteria);
-      const refreshedBcv = await window.notariaDesktop.refreshBcvRate();
-      if (cancelled) return;
-      if (refreshedBcv.ok) {
-        setCriteria({ ...initialCriteria, ...(refreshedBcv.criteria as SarenCriteriaConfig) });
-        setBcvStatus(refreshedBcv.applied === false ? 'BCV consultado; se conserva la tasa manual que elegiste.' : 'Tasa BCV actualizada automáticamente.');
-      } else {
-        setBcvStatus(refreshedBcv.error ? 'No se pudo consultar el BCV; se conserva la última tasa guardada.' : '');
-      }
+      void window.notariaDesktop.refreshBcvRate().then((refreshedBcv) => {
+        if (cancelled) return;
+        if (refreshedBcv.ok) {
+          setCriteria({ ...initialCriteria, ...(refreshedBcv.criteria as SarenCriteriaConfig) });
+          setBcvStatus(refreshedBcv.applied === false ? 'BCV consultado; se conserva la tasa manual que elegiste.' : 'Tasa BCV actualizada automáticamente.');
+        } else {
+          setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
+        }
+      }).catch(() => {
+        if (!cancelled) setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
+      });
     })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
   }, [currentUser, licenseStatus?.allowed, showLicenseGate]);
