@@ -7,7 +7,7 @@ function parseBcvRatePayload(payload, retrievedAt = new Date().toISOString()) {
   if (!Number.isFinite(rate) || rate <= 0 || rate > 1_000_000) {
     throw new Error('La fuente BCV no devolvió una tasa USD válida.');
   }
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(effectiveDate) || Number.isNaN(Date.parse(effectiveDate))) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveDate) || Number.isNaN(Date.parse(effectiveDate))) {
     throw new Error('La fuente BCV no devolvió una fecha de vigencia válida.');
   }
   if (publishedAt && Number.isNaN(Date.parse(publishedAt))) {
