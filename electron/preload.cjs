@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('notariaDesktop', {
   listAuditEvents: (input) => ipcRenderer.invoke('audit:list', input),
   getSetting: (key) => ipcRenderer.invoke('settings:get', key),
   saveSetting: (key, value) => ipcRenderer.invoke('settings:save', { key, value }),
-  refreshBcvRate: () => ipcRenderer.invoke('bcv:refresh'),
+  refreshBcvRate: (input) => ipcRenderer.invoke('bcv:refresh', input),
   saveManualBcvRate: (input) => ipcRenderer.invoke('bcv:save-manual', input),
   listUsers: () => ipcRenderer.invoke('users:list'),
   createUser: (input) => ipcRenderer.invoke('users:create', input),
