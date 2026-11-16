@@ -1,9 +1,10 @@
 const BCV_HISTORY_URL = 'https://bcv.today/api/v1/history/';
 
 function isValidIsoDate(value) {
-  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(value || ''))) return false;
-  const parsed = new Date(String(value) + 'T00:00:00.000Z');
-  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
+  const normalized = String(value);
+  const parsed = new Date(normalized + 'T00:00:00.000Z');
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === normalized;
 }
 
 function getBcvRateUrl(date) {
