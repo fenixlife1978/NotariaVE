@@ -72,7 +72,7 @@ export default function App() {
       if (cancelled) return;
       if (refreshedBcv.ok) {
         setCriteria({ ...initialCriteria, ...(refreshedBcv.criteria as SarenCriteriaConfig) });
-        setBcvStatus('Tasa BCV actualizada automáticamente.');
+        setBcvStatus(refreshedBcv.applied === false ? 'BCV consultado; se conserva la tasa manual que elegiste.' : 'Tasa BCV actualizada automáticamente.');
       } else {
         setBcvStatus(refreshedBcv.error ? 'No se pudo consultar el BCV; se conserva la última tasa guardada.' : '');
       }
@@ -187,7 +187,7 @@ export default function App() {
 
   const handleRefreshBcvRate = async () => {
     setBcvStatus('Consultando tasa BCV…');
-    const result = await window.notariaDesktop.refreshBcvRate();
+    const result = await window.notariaDesktop.refreshBcvRate({ force: true });
     if (result.ok) {
       setCriteria({ ...criteria, ...(result.criteria as SarenCriteriaConfig) });
       setBcvStatus('Tasa BCV actualizada automáticamente.');
