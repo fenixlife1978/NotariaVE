@@ -20,6 +20,8 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const [pageCount, setPageCount] = useState<number>(4);
   const [grantorCount, setGrantorCount] = useState<number>(2);
   const [expressExpedited, setExpressExpedited] = useState<boolean>(false);
+  const [vehicleLawyerFeeMode, setVehicleLawyerFeeMode] = useState<'percentage' | 'minimum' | 'custom'>('percentage');
+  const [customVehicleLawyerFeeUsd, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
   const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 0);
   const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
 
@@ -38,6 +40,8 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     pageCount: pageCount || 1,
     grantorCount: grantorCount || 1,
     expressExpedited,
+    vehicleLawyerFeeMode,
+    customVehicleLawyerFeeUsd,
   });
 
   const selectedStateRule =
@@ -77,7 +81,7 @@ RESUMEN DE LIQUIDACIÓN:
 • Subtotal Aranceles SAREN: Bs. ${calculation.subtotalSarenBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalSarenUsd.toFixed(2)})
 • Subtotal Timbres Fiscales Estadales (${selectedStateRule.taxAuthorityName}): Bs. ${calculation.subtotalTimbresBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalTimbresUsd.toFixed(2)})
 • Subtotal Tasas Municipales (${selectedMunicipality.name} - LOCAPTEM): Bs. ${calculation.subtotalMunicipalBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalMunicipalUsd.toFixed(2)})
-• Honorarios Mínimos Sugeridos de Abogado (Reglamento Federación): Bs. ${calculation.subtotalHonorariosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalHonorariosUsd.toFixed(2)})
+• Honorarios del Abogado (modalidad seleccionada): Bs. ${calculation.subtotalHonorariosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalHonorariosUsd.toFixed(2)})
 
 TOTAL GENERAL ESTIMADO (NO OFICIAL):
 Bs. ${calculation.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} BOLÍVARES
@@ -236,6 +240,44 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
               <option value="declaracion">Declaración Jurada Notarial</option>
             </select>
           </div>
+
+          {operationType === 'venta-vehiculo' && (
+            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
+                  Modalidad de honorarios del abogado:
+                </label>
+                <select
+                  value={vehicleLawyerFeeMode}
+                  onChange={(e) => setVehicleLawyerFeeMode(e.target.value as 'percentage' | 'minimum' | 'custom')}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
+                >
+                  <option value="percentage">3 % del valor del vehículo</option>
+                  <option value="minimum">Mínimo reglamentario ($60)</option>
+                  <option value="custom">Monto libre</option>
+                </select>
+              </div>
+              {vehicleLawyerFeeMode === 'custom' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Honorario acordado (USD):
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={customVehicleLawyerFeeUsd}
+                    onChange={(e) => setCustomVehicleLawyerFeeUsd(Math.max(0, Number(e.target.value)))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-slate-100"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">Se convertirá automáticamente a bolívares con la tasa BCV indicada.</p>
+                </div>
+              )}
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                La modalidad elegida se refleja en el desglose, el total y el presupuesto imprimible o descargable.
+              </p>
+            </div>
+          )}
 
           {/* Amount declared */}
           <div>
