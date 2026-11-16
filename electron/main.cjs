@@ -58,7 +58,7 @@ function requireRole(...roles) {
   return user;
 }
 
-function requireAdmin() { return requireRole('admin'); }
+function requireAdmin() { return requireRole('admin', 'abogado'); }
 
 function writeAudit(actorId, action, entityType, entityId, details = {}) {
   db.prepare(`
@@ -132,7 +132,7 @@ function registerIpc() {
     const password = String(input.password || '');
     if (!/^[a-z0-9._-]{3,64}$/.test(username)) throw new Error('El usuario debe tener entre 3 y 64 caracteres válidos.');
     if (fullName.length < 3 || fullName.length > 120) throw new Error('Indique el nombre completo del administrador.');
-    if (password.length < 12 || password.length > 256) throw new Error('La contraseña debe tener entre 12 y 256 caracteres.');
+    if (password.length < 8 || password.length > 256) throw new Error('La contraseña debe tener entre 8 y 256 caracteres.');
     const salt = randomBytes(16);
     const hash = scryptSync(password, salt, 64);
     const id = randomUUID();
@@ -615,7 +615,7 @@ function registerIpc() {
     if (!/^[a-z0-9._-]{3,64}$/.test(username)) throw new Error('El usuario debe tener entre 3 y 64 caracteres válidos.');
     if (fullName.length < 3 || fullName.length > 120) throw new Error('Indique un nombre completo válido.');
     assertValidRole(role);
-    if (password.length < 12 || password.length > 256) throw new Error('La contraseña debe tener entre 12 y 256 caracteres.');
+    if (password.length < 8 || password.length > 256) throw new Error('La contraseña debe tener entre 8 y 256 caracteres.');
     if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) throw new Error('Ya existe un usuario con ese nombre.');
     const id = randomUUID(), salt = randomBytes(16), hash = scryptSync(password, salt, 64), timestamp = now();
     db.transaction(() => {
@@ -637,7 +637,7 @@ function registerIpc() {
     const password = input.password === undefined ? '' : String(input.password);
     assertValidRole(role);
     if (fullName !== null && (fullName.length < 3 || fullName.length > 120)) throw new Error('Nombre completo no válido.');
-    if (password && (password.length < 12 || password.length > 256)) throw new Error('La nueva contraseña debe tener entre 12 y 256 caracteres.');
+    if (password && (password.length < 8 || password.length > 256)) throw new Error('La nueva contraseña debe tener entre 8 y 256 caracteres.');
     const otherAdmins = target.role === 'admin' && (active !== 1 || role !== 'admin')
       ? db.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND active = 1 AND id <> ?").get(id).count
       : 0;
