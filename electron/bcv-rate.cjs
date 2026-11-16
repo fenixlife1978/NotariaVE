@@ -52,4 +52,4 @@ function validateManualBcvRate(value) {
   return rate;
 }
 
-module.exports = { BCV_HISTORY_URL, getBcvRateUrl, parseBcvRatePayload, getCaracasDate, validateManualBcvRate };
+module.exports = { BCV_HISTORY_URL, isValidIsoDate, getBcvRateUrl, parseBcvRatePayload, getCaracasDate, validateManualBcvRate };
