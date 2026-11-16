@@ -9,6 +9,7 @@ const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCrit
 const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
 const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
 const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
+const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
 
 let mainWindow;
 let db;
@@ -323,12 +324,7 @@ function registerIpc() {
     if (selection.canceled || !selection.filePath) return { canceled: true };
     fs.writeFileSync(selection.filePath, row.content, { flag: 'wx' });
     try {
-      db.transaction(() => {
-        writeAudit(actor.id, 'attachment_exported', row.entity_type, row.entity_id, {
-          attachmentId: row.id, originalName: row.original_name,
-          exportedFileName: path.basename(selection.filePath), sha256: actualHash,
-        });
-      })();
+      recordAttachmentExported(db, actor.id, row, path.basename(selection.filePath), actualHash);
     } catch (error) {
       try { fs.unlinkSync(selection.filePath); } catch (cleanupError) {
         console.error('No se pudo retirar el archivo cuya exportación no quedó auditada:', cleanupError);
@@ -429,17 +425,7 @@ function registerIpc() {
         throw error;
       }
       try {
-        const restoredActor = db.prepare('SELECT id, active FROM users WHERE id = ?').get(requestedByUserId);
-        const restoredActorPresent = Boolean(restoredActor && restoredActor.active === 1);
-        db.transaction(() => {
-          writeAudit(restoredActorPresent ? requestedByUserId : null, 'backup_restore_completed', 'database', null, {
-            fileName: verified.fileName,
-            sha256: verified.sha256,
-            requestedByUserId,
-            requestedByUsername,
-            restoredActorPresent,
-          });
-        })();
+        recordBackupRestoreCompleted(db, { userId: requestedByUserId, username: requestedByUsername }, verified);
       } catch (auditError) {
         db.close();
         db = null;
