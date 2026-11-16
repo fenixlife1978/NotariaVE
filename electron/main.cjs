@@ -313,15 +313,28 @@ function registerIpc() {
   });
 
   handleIpc('attachments:export', async (_event, id) => {
-    requireSession();
+    const actor = requireSession();
     const attachmentId = String(id || '');
-    const row = db.prepare('SELECT original_name, content, sha256 FROM attachments WHERE id = ?').get(attachmentId);
+    const row = db.prepare('SELECT id, entity_type, entity_id, original_name, content, sha256 FROM attachments WHERE id = ?').get(attachmentId);
     if (!row || !row.content) throw new Error('El adjunto no existe o no contiene datos.');
     const actualHash = createHash('sha256').update(row.content).digest('hex');
     if (actualHash !== row.sha256) throw new Error('El contenido del adjunto no superó la verificación SHA-256.');
     const selection = await dialog.showSaveDialog(mainWindow, { title: 'Exportar copia del adjunto', defaultPath: row.original_name });
     if (selection.canceled || !selection.filePath) return { canceled: true };
     fs.writeFileSync(selection.filePath, row.content, { flag: 'wx' });
+    try {
+      db.transaction(() => {
+        writeAudit(actor.id, 'attachment_exported', row.entity_type, row.entity_id, {
+          attachmentId: row.id, originalName: row.original_name,
+          exportedFileName: path.basename(selection.filePath), sha256: actualHash,
+        });
+      })();
+    } catch (error) {
+      try { fs.unlinkSync(selection.filePath); } catch (cleanupError) {
+        console.error('No se pudo retirar el archivo cuya exportación no quedó auditada:', cleanupError);
+      }
+      throw error;
+    }
     return { canceled: false, fileName: path.basename(selection.filePath), sha256: actualHash };
   });
 
@@ -361,6 +374,8 @@ function registerIpc() {
 
   handleIpc('backup:restore', async () => {
     const actor = requireAdmin();
+    const requestedByUserId = actor.id;
+    const requestedByUsername = actor.username;
     const selection = await dialog.showOpenDialog(mainWindow, {
       title: 'Seleccionar respaldo verificado de NotariaVE',
       buttonLabel: 'Verificar y restaurar',
@@ -412,6 +427,32 @@ function registerIpc() {
         db = recovered.db;
         databasePath = recovered.dbPath;
         throw error;
+      }
+      try {
+        const restoredActor = db.prepare('SELECT id, active FROM users WHERE id = ?').get(requestedByUserId);
+        const restoredActorPresent = Boolean(restoredActor && restoredActor.active === 1);
+        db.transaction(() => {
+          writeAudit(restoredActorPresent ? requestedByUserId : null, 'backup_restore_completed', 'database', null, {
+            fileName: verified.fileName,
+            sha256: verified.sha256,
+            requestedByUserId,
+            requestedByUsername,
+            restoredActorPresent,
+          });
+        })();
+      } catch (auditError) {
+        db.close();
+        db = null;
+        for (const suffix of ['-wal', '-shm']) {
+          const sidecar = `${databasePath}${suffix}`;
+          if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
+        }
+        if (fs.existsSync(databasePath)) fs.unlinkSync(databasePath);
+        fs.renameSync(displacedPath, databasePath);
+        const recovered = openDatabase(userDataPath);
+        db = recovered.db;
+        databasePath = recovered.dbPath;
+        throw auditError;
       }
       if (fs.existsSync(displacedPath)) {
         try { fs.unlinkSync(displacedPath); } catch (cleanupError) { console.error('No se pudo retirar el archivo desplazado:', cleanupError); }
