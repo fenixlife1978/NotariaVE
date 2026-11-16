@@ -41,7 +41,7 @@ export const UserAdministration: React.FC = () => {
       <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Usuario<input required minLength={3} maxLength={64} value={username} onChange={(e) => setUsername(e.target.value)} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm" /></label>
       <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Nombre completo<input required minLength={3} maxLength={120} value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm" /></label>
       <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Perfil<select value={role} onChange={(e) => setRole(e.target.value as Role)} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm">{roles.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
-      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Contraseña inicial (mín. 12)<input required type="password" minLength={12} maxLength={256} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm" /></label>
+      <label className="text-xs font-semibold text-slate-600 dark:text-slate-300">Contraseña inicial (mín. 8)<input required type="password" minLength={8} maxLength={256} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm" /></label>
       <div className="flex items-end"><button disabled={busy} className="w-full rounded-lg bg-blue-600 text-white font-bold text-sm p-2 disabled:opacity-50">Crear usuario</button></div>
     </form>
     {error && <p role="alert" className="text-sm text-rose-600">{error}</p>}{notice && <p role="status" className="text-sm text-emerald-600">{notice}</p>}
@@ -51,12 +51,12 @@ export const UserAdministration: React.FC = () => {
         {users.map((user) => <div key={user.id} className="p-4 grid grid-cols-1 lg:grid-cols-[1.3fr_1fr_1fr_1.5fr_auto] gap-3 items-end">
           <div><div className="font-semibold text-sm">{user.fullName}</div><div className="text-xs text-slate-500">@{user.username} · {user.active ? 'Activa' : 'Desactivada'}</div></div>
           <label className="text-xs text-slate-500">Perfil<select disabled={busy} value={user.role} onChange={(e) => void update(user, { role: e.target.value as Role })} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm text-slate-900 dark:text-white">{roles.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></label>
-          <label className="text-xs text-slate-500">Nueva contraseña<input type="password" minLength={12} maxLength={256} placeholder="Opcional, mín. 12" value={resetPasswords[user.id] || ''} onChange={(e) => setResetPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm" /></label>
+          <label className="text-xs text-slate-500">Nueva contraseña<input type="password" minLength={8} maxLength={256} placeholder="Opcional, mín. 8" value={resetPasswords[user.id] || ''} onChange={(e) => setResetPasswords((prev) => ({ ...prev, [user.id]: e.target.value }))} className="mt-1 w-full rounded-lg border p-2 bg-transparent text-sm" /></label>
           <div className="text-[11px] text-slate-500">Creado: {new Date(user.createdAt).toLocaleDateString()}</div>
           <div className="flex gap-2"><button disabled={busy || !(resetPasswords[user.id] || '').trim()} onClick={() => void update(user, { password: resetPasswords[user.id] })} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-40">Restablecer</button><button disabled={busy} onClick={() => void update(user, { active: !user.active })} className={`rounded-lg px-3 py-2 text-xs font-semibold ${user.active ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{user.active ? 'Desactivar' : 'Activar'}</button></div>
         </div>)}
       </div>
     </div>
-    <p className="text-xs text-slate-500">Los permisos se verifican en Electron, no solo en la interfaz. Administrador: control total. Abogado: clientes, expedientes y perfil profesional. Asistente: captura y edición de clientes/expedientes. Solo consulta: lectura sin cambios.</p>
+    <p className="text-xs text-slate-500">Los permisos se verifican en Electron, no solo en la interfaz. Administrador y abogado: acceso completo a NotariaVE. Asistente y solo consulta son perfiles opcionales si el abogado desea limitar una cuenta adicional.</p>
   </section>;
 };
