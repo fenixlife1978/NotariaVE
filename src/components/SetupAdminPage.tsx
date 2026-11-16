@@ -45,11 +45,11 @@ export const SetupAdminPage: React.FC<Props> = ({ onCreated }) => {
         <label className="block text-xs font-semibold text-slate-300">Usuario local
           <span className="relative block mt-1"><UserRound className="absolute left-3 top-3 h-4 w-4 text-slate-500" /><input required minLength={3} maxLength={64} pattern="[A-Za-z0-9._-]+" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2 pl-10 pr-3 text-white" /></span>
         </label>
-        <label className="block text-xs font-semibold text-slate-300">Contraseña (mínimo 12 caracteres)
-          <span className="relative block mt-1"><LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-slate-500" /><input required minLength={12} maxLength={256} type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2 pl-10 pr-3 text-white" /></span>
+        <label className="block text-xs font-semibold text-slate-300">Contraseña (mínimo 8 caracteres)
+          <span className="relative block mt-1"><LockKeyhole className="absolute left-3 top-3 h-4 w-4 text-slate-500" /><input required minLength={8} maxLength={256} type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" className="w-full rounded-lg border border-slate-700 bg-slate-950 py-2 pl-10 pr-3 text-white" /></span>
         </label>
         <label className="block text-xs font-semibold text-slate-300">Confirmar contraseña
-          <input required minLength={12} maxLength={256} type="password" value={confirmation} onChange={e => setConfirmation(e.target.value)} autoComplete="new-password" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
+          <input required minLength={8} maxLength={256} type="password" value={confirmation} onChange={e => setConfirmation(e.target.value)} autoComplete="new-password" className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white" />
         </label>
         <button disabled={busy} className="w-full rounded-lg bg-amber-500 px-4 py-3 text-sm font-bold text-slate-950 disabled:opacity-50">{busy ? 'Creando administrador…' : 'Crear administrador local'}</button>
       </form>
