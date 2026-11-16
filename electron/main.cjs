@@ -672,7 +672,8 @@ function registerIpc() {
     `).all(limit, offset).map(row => ({ ...row, details: JSON.parse(row.detailsJson) }));
   });
 
-  handleIpc('bcv:refresh', async () => {
+  handleIpc('bcv:refresh', async (_event, input = {}) => {
+    const force = input.force === true;
     const actor = requireSession();
     const existing = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'saren_criteria'").get();
     const criteria = existing ? JSON.parse(existing.setting_value) : {};
@@ -683,20 +684,26 @@ function registerIpc() {
       });
       if (!response.ok) throw new Error('BCV respondió HTTP ' + response.status + '.');
       const record = parseBcvRatePayload(await response.json());
-      const updatedCriteria = { ...criteria, bcvRate: record.rate, bcvRateSource: record.source,
-        bcvRateSourceType: record.sourceType, bcvRateDate: record.effectiveDate,
-        bcvRateUpdatedAt: record.retrievedAt };
+      const preserveManual = criteria.bcvRateSourceType === 'manual' && !force;
+      const updatedCriteria = preserveManual ? criteria : { ...criteria, bcvRate: record.rate,
+        bcvRateSource: record.source, bcvRateSourceType: record.sourceType,
+        bcvRateDate: record.effectiveDate, bcvRateUpdatedAt: record.retrievedAt };
       db.transaction(() => {
-        db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('saren_criteria', ?, ?)
+        const recordKey = preserveManual ? 'bcv_rate_last_automatic' : 'bcv_rate_record';
+        db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
           ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
-          .run(JSON.stringify(updatedCriteria), now());
-        db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('bcv_rate_record', ?, ?)
-          ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
-          .run(JSON.stringify(record), now());
-        writeAudit(actor.id, 'bcv_rate_updated_automatically', 'exchange_rate', 'USD/VES',
-          { rate: record.rate, effectiveDate: record.effectiveDate, source: record.source });
+          .run(recordKey, JSON.stringify(record), now());
+        if (!preserveManual) {
+          db.prepare(`INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES ('saren_criteria', ?, ?)
+            ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at`)
+            .run(JSON.stringify(updatedCriteria), now());
+          const changed = Number(criteria.bcvRate) !== record.rate || criteria.bcvRateDate !== record.effectiveDate ||
+            criteria.bcvRateSourceType !== 'automatic';
+          if (changed) writeAudit(actor.id, 'bcv_rate_updated_automatically', 'exchange_rate', 'USD/VES',
+            { rate: record.rate, effectiveDate: record.effectiveDate, source: record.source });
+        }
       })();
-      return { ok: true, criteria: updatedCriteria, record };
+      return { ok: true, applied: !preserveManual, criteria: updatedCriteria, record };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : 'No se pudo consultar la tasa BCV.' };
     }
