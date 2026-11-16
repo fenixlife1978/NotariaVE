@@ -362,22 +362,27 @@ test('records attachment exports without storing attachment contents in the audi
 });
 
 
-const { BCV_RATE_URL, parseBcvRatePayload, validateManualBcvRate } = require('../electron/bcv-rate.cjs');
+const { getBcvRateUrl, parseBcvRatePayload, getCaracasDate, validateManualBcvRate } = require('../electron/bcv-rate.cjs');
 
-test('validates and normalizes automatic BCV USD/VES responses', () => {
+test('uses the same date-scoped BCV history endpoint as SIFER and validates returned dates', () => {
+  const requestedDate = '2026-11-16';
   const record = parseBcvRatePayload({
     USD: 914.0218,
-    date: '2026-11-16',
-    effective_date: '2026-11-16',
+    date: requestedDate,
+    effective_date: '2026-11-13',
     updated_at: '2026-11-14T00:06:31.508Z',
-  }, '2026-11-16T10:00:00.000Z');
-  assert.equal(BCV_RATE_URL, 'https://bcv.today/api/v1/rate.json');
+  }, requestedDate, '2026-11-16T10:00:00.000Z');
+  assert.equal(getBcvRateUrl(requestedDate), 'https://bcv.today/api/v1/history/2026-11-16.json');
   assert.equal(record.rate, 914.0218);
-  assert.equal(record.effectiveDate, '2026-11-16');
+  assert.equal(record.requestedDate, requestedDate);
+  assert.equal(record.effectiveDate, '2026-11-13');
   assert.equal(record.sourceType, 'automatic');
   assert.match(record.source, /réplica pública/);
-  assert.throws(() => parseBcvRatePayload({ USD: 0, date: '2026-11-16' }), /tasa USD válida/);
-  assert.throws(() => parseBcvRatePayload({ USD: 914, date: 'fecha inválida' }), /fecha de vigencia válida/);
+  assert.equal(getCaracasDate(new Date('2026-11-16T03:30:00.000Z')), '2026-11-15');
+  assert.throws(() => getBcvRateUrl('fecha inválida'), /fecha de consulta BCV/);
+  assert.throws(() => parseBcvRatePayload({ USD: 0, date: requestedDate }, requestedDate), /tasa USD válida/);
+  assert.throws(() => parseBcvRatePayload({ USD: 914, date: '2026-11-15' }, requestedDate), /fecha solicitada/);
+  assert.throws(() => parseBcvRatePayload({ USD: 914, date: requestedDate, effective_date: '2026-11-17' }, requestedDate), /fecha de vigencia válida/);
 });
 
 test('accepts positive manual BCV rates and rejects invalid values', () => {
