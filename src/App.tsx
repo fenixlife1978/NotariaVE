@@ -71,7 +71,7 @@ export default function App() {
       const refreshedBcv = await window.notariaDesktop.refreshBcvRate();
       if (cancelled) return;
       if (refreshedBcv.ok) {
-        setCriteria(refreshedBcv.criteria as SarenCriteriaConfig);
+        setCriteria({ ...initialCriteria, ...(refreshedBcv.criteria as SarenCriteriaConfig) });
         setBcvStatus('Tasa BCV actualizada automáticamente.');
       } else {
         setBcvStatus(refreshedBcv.error ? 'No se pudo consultar el BCV; se conserva la última tasa guardada.' : '');
@@ -181,7 +181,7 @@ export default function App() {
 
   const handleUpdateBcvRate = async (rate: number) => {
     const result = await window.notariaDesktop.saveManualBcvRate({ rate });
-    setCriteria(result.criteria as SarenCriteriaConfig);
+    setCriteria({ ...criteria, ...(result.criteria as SarenCriteriaConfig) });
     setBcvStatus('Tasa editada y guardada manualmente.');
   };
 
@@ -189,7 +189,7 @@ export default function App() {
     setBcvStatus('Consultando tasa BCV…');
     const result = await window.notariaDesktop.refreshBcvRate();
     if (result.ok) {
-      setCriteria(result.criteria as SarenCriteriaConfig);
+      setCriteria({ ...criteria, ...(result.criteria as SarenCriteriaConfig) });
       setBcvStatus('Tasa BCV actualizada automáticamente.');
     } else {
       setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
@@ -249,6 +249,7 @@ export default function App() {
             onUpdateBcvRate={handleUpdateBcvRate}
             onRefreshBcvRate={handleRefreshBcvRate}
             bcvStatus={bcvStatus}
+            canEditBcvRate={['admin', 'abogado'].includes(currentUser.role)}
           />
         )}
 
