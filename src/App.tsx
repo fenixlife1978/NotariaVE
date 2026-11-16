@@ -29,6 +29,7 @@ export default function App() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [desktopError, setDesktopError] = useState<string | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [bcvStatus, setBcvStatus] = useState('');
 
   useEffect(() => {
     window.notariaDesktop.getStatus()
@@ -65,7 +66,16 @@ export default function App() {
       setClients(storedClients as ClientParty[]);
       setSavedDocuments(storedDocuments);
       setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
-      setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
+      const initialCriteria = (storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA;
+      setCriteria(initialCriteria);
+      const refreshedBcv = await window.notariaDesktop.refreshBcvRate();
+      if (cancelled) return;
+      if (refreshedBcv.ok) {
+        setCriteria(refreshedBcv.criteria as SarenCriteriaConfig);
+        setBcvStatus('Tasa BCV actualizada automáticamente.');
+      } else {
+        setBcvStatus(refreshedBcv.error ? 'No se pudo consultar el BCV; se conserva la última tasa guardada.' : '');
+      }
     })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
     return () => { cancelled = true; };
   }, [currentUser, licenseStatus?.allowed, showLicenseGate]);
@@ -169,8 +179,21 @@ export default function App() {
     setActiveTab('editor');
   };
 
-  const handleUpdateBcvRate = (rate: number) => {
-    void handleUpdateCriteria({ ...criteria, bcvRate: rate });
+  const handleUpdateBcvRate = async (rate: number) => {
+    const result = await window.notariaDesktop.saveManualBcvRate({ rate });
+    setCriteria(result.criteria as SarenCriteriaConfig);
+    setBcvStatus('Tasa editada y guardada manualmente.');
+  };
+
+  const handleRefreshBcvRate = async () => {
+    setBcvStatus('Consultando tasa BCV…');
+    const result = await window.notariaDesktop.refreshBcvRate();
+    if (result.ok) {
+      setCriteria(result.criteria as SarenCriteriaConfig);
+      setBcvStatus('Tasa BCV actualizada automáticamente.');
+    } else {
+      setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
+    }
   };
 
   const handleLogin = (user: { username: string; role: string; fullName: string }) => {
@@ -224,6 +247,8 @@ export default function App() {
           <FeeCalculatorView
             criteria={criteria}
             onUpdateBcvRate={handleUpdateBcvRate}
+            onRefreshBcvRate={handleRefreshBcvRate}
+            bcvStatus={bcvStatus}
           />
         )}
 
