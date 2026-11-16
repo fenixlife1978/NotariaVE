@@ -362,7 +362,7 @@ test('records attachment exports without storing attachment contents in the audi
 });
 
 
-const { getBcvRateUrl, parseBcvRatePayload, getCaracasDate, validateManualBcvRate } = require('../electron/bcv-rate.cjs');
+const { isValidIsoDate, getBcvRateUrl, parseBcvRatePayload, getCaracasDate, validateManualBcvRate } = require('../electron/bcv-rate.cjs');
 
 test('uses the same date-scoped BCV history endpoint as SIFER and validates returned dates', () => {
   const requestedDate = '2026-11-16';
@@ -379,10 +379,15 @@ test('uses the same date-scoped BCV history endpoint as SIFER and validates retu
   assert.equal(record.sourceType, 'automatic');
   assert.match(record.source, /réplica pública/);
   assert.equal(getCaracasDate(new Date('2026-11-16T03:30:00.000Z')), '2026-11-15');
+  assert.equal(isValidIsoDate('2026-11-16'), true);
+  assert.equal(isValidIsoDate('2026-02-31'), false);
+  assert.equal(isValidIsoDate('2026-13-01'), false);
   assert.throws(() => getBcvRateUrl('fecha inválida'), /fecha de consulta BCV/);
+  assert.throws(() => getBcvRateUrl('2026-02-31'), /fecha de consulta BCV/);
   assert.throws(() => parseBcvRatePayload({ USD: 0, date: requestedDate }, requestedDate), /tasa USD válida/);
   assert.throws(() => parseBcvRatePayload({ USD: 914, date: '2026-11-15' }, requestedDate), /fecha solicitada/);
   assert.throws(() => parseBcvRatePayload({ USD: 914, date: requestedDate, effective_date: '2026-11-17' }, requestedDate), /fecha de vigencia válida/);
+  assert.throws(() => parseBcvRatePayload({ USD: 914, date: requestedDate, effective_date: '2026-02-31' }, requestedDate), /fecha de vigencia válida/);
 });
 
 test('accepts positive manual BCV rates and rejects invalid values', () => {
