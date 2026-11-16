@@ -675,8 +675,6 @@ function registerIpc() {
   handleIpc('bcv:refresh', async (_event, input = {}) => {
     const force = input.force === true;
     const actor = requireSession();
-    const existing = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'saren_criteria'").get();
-    const criteria = existing ? JSON.parse(existing.setting_value) : {};
     try {
       const response = await fetch(BCV_RATE_URL, {
         headers: { Accept: 'application/json', 'Cache-Control': 'no-cache' },
@@ -684,6 +682,9 @@ function registerIpc() {
       });
       if (!response.ok) throw new Error('BCV respondió HTTP ' + response.status + '.');
       const record = parseBcvRatePayload(await response.json());
+      // Re-read after the network request so a manual edit made while fetching is never overwritten.
+      const existing = db.prepare("SELECT setting_value FROM app_settings WHERE setting_key = 'saren_criteria'").get();
+      const criteria = existing ? JSON.parse(existing.setting_value) : {};
       const preserveManual = criteria.bcvRateSourceType === 'manual' && !force;
       const updatedCriteria = preserveManual ? criteria : { ...criteria, bcvRate: record.rate,
         bcvRateSource: record.source, bcvRateSourceType: record.sourceType,
