@@ -11,9 +11,10 @@ interface FeeCalculatorViewProps {
   onUpdateBcvRate: (rate: number) => Promise<void>;
   onRefreshBcvRate: () => Promise<void>;
   bcvStatus: string;
+  canEditBcvRate: boolean;
 }
 
-export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, onUpdateBcvRate, onRefreshBcvRate, bcvStatus }) => {
+export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, onUpdateBcvRate, onRefreshBcvRate, bcvStatus, canEditBcvRate }) => {
   const [stateId, setStateId] = useState<string>('distrito-capital');
   const [municipalityId, setMunicipalityId] = useState<string>('mun-libertador-dc');
   const [operationType, setOperationType] = useState<FeeInputParams['operationType']>('venta-inmueble');
@@ -31,11 +32,11 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const handleRateChange = (newRate: number) => setBcvRate(newRate);
   const handleSaveManualRate = async () => {
     setIsSavingRate(true);
-    try { await onUpdateBcvRate(bcvRate); } finally { setIsSavingRate(false); }
+    try { await onUpdateBcvRate(bcvRate); } catch (error) { console.error(error); } finally { setIsSavingRate(false); }
   };
   const handleRefreshRate = async () => {
     setIsRefreshingRate(true);
-    try { await onRefreshBcvRate(); } finally { setIsRefreshingRate(false); }
+    try { await onRefreshBcvRate(); } catch (error) { console.error(error); } finally { setIsRefreshingRate(false); }
   };
   const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
 
@@ -366,12 +367,13 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
                 step="0.0001"
                 value={bcvRate}
                 onChange={(e) => handleRateChange(Number(e.target.value))}
+                disabled={!canEditBcvRate}
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-slate-100"
               />
               <span className="text-xs text-slate-500 font-mono shrink-0">Bs. / USD</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={handleSaveManualRate} disabled={isSavingRate || !Number.isFinite(bcvRate) || bcvRate <= 0}
+              <button type="button" onClick={handleSaveManualRate} disabled={!canEditBcvRate || isSavingRate || !Number.isFinite(bcvRate) || bcvRate <= 0}
                 className="px-3 py-2 rounded-md bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold disabled:opacity-50">
                 {isSavingRate ? 'Guardando…' : 'Guardar tasa manual'}
               </button>
