@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calculator, Printer, FileDown, Building, Info, Landmark } from 'lucide-react';
 import { calculateVenezuelanFees, FeeInputParams } from '../utils/feeCalculator';
 import { VENEZUELAN_STATES_TAX_DATA } from '../data/venezuelaTaxData';
@@ -8,10 +8,12 @@ import { SarenCriteriaConfig } from '../types/legal';
 
 interface FeeCalculatorViewProps {
   criteria: SarenCriteriaConfig;
-  onUpdateBcvRate: (rate: number) => void;
+  onUpdateBcvRate: (rate: number) => Promise<void>;
+  onRefreshBcvRate: () => Promise<void>;
+  bcvStatus: string;
 }
 
-export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, onUpdateBcvRate }) => {
+export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, onUpdateBcvRate, onRefreshBcvRate, bcvStatus }) => {
   const [stateId, setStateId] = useState<string>('distrito-capital');
   const [municipalityId, setMunicipalityId] = useState<string>('mun-libertador-dc');
   const [operationType, setOperationType] = useState<FeeInputParams['operationType']>('venta-inmueble');
@@ -23,12 +25,19 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const [vehicleLawyerFeeMode, setVehicleLawyerFeeMode] = useState<'percentage' | 'minimum' | 'custom'>('percentage');
   const [customVehicleLawyerFeeUsd, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
   const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 0);
-  const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
-
-  const handleRateChange = (newRate: number) => {
-    setBcvRate(newRate);
-    onUpdateBcvRate(newRate);
+  const [isSavingRate, setIsSavingRate] = useState(false);
+  const [isRefreshingRate, setIsRefreshingRate] = useState(false);
+  useEffect(() => setBcvRate(criteria.bcvRate || 0), [criteria.bcvRate]);
+  const handleRateChange = (newRate: number) => setBcvRate(newRate);
+  const handleSaveManualRate = async () => {
+    setIsSavingRate(true);
+    try { await onUpdateBcvRate(bcvRate); } finally { setIsSavingRate(false); }
   };
+  const handleRefreshRate = async () => {
+    setIsRefreshingRate(true);
+    try { await onRefreshBcvRate(); } finally { setIsRefreshingRate(false); }
+  };
+  const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
 
   const calculation = calculateVenezuelanFees({
     stateId,
@@ -341,20 +350,42 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
           </div>
 
           {/* BCV Rate */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Tasa BCV introducida manualmente (verifique fuente y fecha):
-            </label>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Tasa BCV vigente (editable):
+              </label>
+              <span className="text-[10px] font-semibold rounded bg-slate-100 dark:bg-slate-800 px-2 py-1 text-slate-600 dark:text-slate-300">
+                {criteria.bcvRateSourceType === 'manual' ? 'Edición manual' : 'Consulta automática'}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                step="0.01"
+                min="0.000001"
+                step="0.0001"
                 value={bcvRate}
                 onChange={(e) => handleRateChange(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-slate-100"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-slate-100"
               />
               <span className="text-xs text-slate-500 font-mono shrink-0">Bs. / USD</span>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={handleSaveManualRate} disabled={isSavingRate || !Number.isFinite(bcvRate) || bcvRate <= 0}
+                className="px-3 py-2 rounded-md bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold disabled:opacity-50">
+                {isSavingRate ? 'Guardando…' : 'Guardar tasa manual'}
+              </button>
+              <button type="button" onClick={handleRefreshRate} disabled={isRefreshingRate}
+                className="px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold disabled:opacity-50">
+                {isRefreshingRate ? 'Consultando…' : 'Actualizar desde BCV'}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {criteria.bcvRateSource || 'Aún no hay una fuente registrada.'}
+              {criteria.bcvRateDate ? ` · Vigencia: ${criteria.bcvRateDate}` : ''}
+              {criteria.bcvRateUpdatedAt ? ` · Consultada: ${new Date(criteria.bcvRateUpdatedAt).toLocaleString('es-VE')}` : ''}
+            </p>
+            {bcvStatus && <p className="text-[11px] text-slate-600 dark:text-slate-300">{bcvStatus}</p>}
           </div>
 
           {/* Pages and Grantors count */}
