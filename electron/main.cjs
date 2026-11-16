@@ -719,7 +719,7 @@ function registerIpc() {
     const previous = Number(criteria.bcvRate) || null;
     const timestamp = now();
     const record = { rate, source: 'Edición manual del abogado', sourceType: 'manual',
-      effectiveDate: String(input.effectiveDate || getCaracasDate(new Date(timestamp))), publishedAt: null, retrievedAt: timestamp };
+      effectiveDate: String(input.effectiveDate || getCaracasDate()), publishedAt: null, retrievedAt: timestamp };
     const updatedCriteria = { ...criteria, bcvRate: rate, bcvRateSource: record.source,
       bcvRateSourceType: record.sourceType, bcvRateDate: record.effectiveDate, bcvRateUpdatedAt: timestamp };
     db.transaction(() => {
