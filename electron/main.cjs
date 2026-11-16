@@ -472,11 +472,16 @@ function registerIpc() {
         counts: verified.counts,
       };
     } catch (error) {
-      if (fs.existsSync(displacedPath) && !fs.existsSync(databasePath)) {
+      if (fs.existsSync(displacedPath)) {
+        if (db?.open) {
+          db.close();
+          db = null;
+        }
         for (const suffix of ['-wal', '-shm']) {
           const sidecar = `${databasePath}${suffix}`;
           if (fs.existsSync(sidecar)) fs.unlinkSync(sidecar);
         }
+        if (fs.existsSync(databasePath)) fs.unlinkSync(databasePath);
         fs.renameSync(displacedPath, databasePath);
       }
       if (!db || !db.open) {
