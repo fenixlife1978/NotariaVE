@@ -20,6 +20,8 @@ export interface FeeInputParams {
   pageCount: number;
   grantorCount: number;
   expressExpedited: boolean;
+  vehicleLawyerFeeMode?: 'percentage' | 'minimum' | 'custom';
+  customVehicleLawyerFeeUsd?: number;
 }
 
 export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationResult {
@@ -33,6 +35,8 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
     pageCount,
     grantorCount,
     expressExpedited,
+    vehicleLawyerFeeMode = 'percentage',
+    customVehicleLawyerFeeUsd = 60,
   } = params;
 
   const stateRule =
@@ -196,8 +200,16 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
     lawyerFeeUsd = Math.max(amountUsd * 0.02, 250); // 2% del inmueble o mínimo $250
     lawyerBasis = '2% del valor del inmueble o tarifa mínima para compraventa inmobiliaria ($250 USD)';
   } else if (operationType === 'venta-vehiculo') {
-    lawyerFeeUsd = Math.max(amountUsd * 0.03, 60); // 3% o mínimo $60
-    lawyerBasis = '3% del valor del vehículo o tarifa mínima reglamentaria ($60 USD)';
+    if (vehicleLawyerFeeMode === 'minimum') {
+      lawyerFeeUsd = 60;
+      lawyerBasis = 'Mínimo seleccionado por el abogado: US$ 60';
+    } else if (vehicleLawyerFeeMode === 'custom') {
+      lawyerFeeUsd = Math.max(0, Number(customVehicleLawyerFeeUsd) || 0);
+      lawyerBasis = 'Monto libre de honorarios indicado por el abogado';
+    } else {
+      lawyerFeeUsd = amountUsd * 0.03;
+      lawyerBasis = '3% del valor declarado del vehículo';
+    }
   } else if (operationType === 'constitucion-ca') {
     lawyerFeeUsd = Math.max(amountUsd * 0.05, 180); // 5% o mínimo $180
     lawyerBasis = '5% del capital o tarifa mínima para redacción y visado de estatutos mercantiles ($180 USD)';
@@ -220,7 +232,7 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
 
   const lawyerFeeBs = lawyerFeeUsd * bcvRate;
   items.push({
-    concept: 'Honorarios Mínimos de Redacción y Visado (Colegio de Abogados)',
+    concept: operationType === 'venta-vehiculo' ? 'Honorarios del Abogado por Compraventa de Vehículo' : 'Honorarios Mínimos de Redacción y Visado (Colegio de Abogados)',
     basis: lawyerBasis,
     amountBs: lawyerFeeBs,
     amountUsd: lawyerFeeUsd,
