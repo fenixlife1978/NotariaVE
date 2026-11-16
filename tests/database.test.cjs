@@ -360,3 +360,29 @@ test('records attachment exports without storing attachment contents in the audi
     assert.equal(Object.hasOwn(JSON.parse(event.details_json), 'content'), false);
   });
 });
+
+
+const { BCV_RATE_URL, parseBcvRatePayload, validateManualBcvRate } = require('../electron/bcv-rate.cjs');
+
+test('validates and normalizes automatic BCV USD/VES responses', () => {
+  const record = parseBcvRatePayload({
+    USD: 914.0218,
+    date: '2026-11-16',
+    effective_date: '2026-11-16',
+    updated_at: '2026-11-14T00:06:31.508Z',
+  }, '2026-11-16T10:00:00.000Z');
+  assert.equal(BCV_RATE_URL, 'https://bcv.today/api/v1/rate.json');
+  assert.equal(record.rate, 914.0218);
+  assert.equal(record.effectiveDate, '2026-11-16');
+  assert.equal(record.sourceType, 'automatic');
+  assert.match(record.source, /réplica pública/);
+  assert.throws(() => parseBcvRatePayload({ USD: 0, date: '2026-11-16' }), /tasa USD válida/);
+  assert.throws(() => parseBcvRatePayload({ USD: 914, date: 'fecha inválida' }), /fecha de vigencia válida/);
+});
+
+test('accepts positive manual BCV rates and rejects invalid values', () => {
+  assert.equal(validateManualBcvRate('914.25'), 914.25);
+  for (const value of [0, -1, 'abc', Infinity, 1_000_001]) {
+    assert.throws(() => validateManualBcvRate(value), /tasa BCV/);
+  }
+});
