@@ -763,6 +763,7 @@ function registerIpc() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    icon: path.join(__dirname, "..", "build", "notariave.ico"),
     width: 1440,
     height: 960,
     minWidth: 1024,
