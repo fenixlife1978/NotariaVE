@@ -1,7 +1,7 @@
 {
   "name": "notariave-desktop",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "npm run desktop:dev",
@@ -44,13 +44,14 @@
   "main": "electron/main.cjs",
   "build": {
     "appId": "ve.notariave.desktop",
-    "productName": "NotariaVE",
+    "productName": "Notaría VE",
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "build/**/*",
       "package.json"
     ],
     "asar": true,
@@ -58,6 +59,7 @@
       "node_modules/better-sqlite3/**/*"
     ],
     "win": {
+      "icon": "build/notariave.ico",
       "target": [
         {
           "target": "nsis",
