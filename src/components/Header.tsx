@@ -1,5 +1,5 @@
 import React from 'react';
-import { Scale, FileText, Calculator, Users, Settings, Plus, LogOut, ShieldCheck } from 'lucide-react';
+import { FileText, Calculator, Users, Settings, Plus, LogOut, ShieldCheck } from 'lucide-react';
 
 type Tab = 'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments' | 'profile' | 'audit';
 interface HeaderProps {
@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onNewDo
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 min-h-16 py-2">
           <button onClick={() => setActiveTab('editor')} className="flex items-center gap-3 shrink-0 text-lg font-bold tracking-tight hover:text-amber-400">
-            <span className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400"><Scale className="w-5 h-5" /></span>
+            <img src="./favicon.ico" alt="" className="w-9 h-9 object-contain" />
             <span className="hidden sm:inline">NotariaVE</span>
           </button>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs sm:text-sm font-medium">
