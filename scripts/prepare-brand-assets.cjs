@@ -13,7 +13,15 @@ function main() {
 
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'notariave-brand-'));
   try {
-    execFileSync('tar', ['-xf', archive, '-C', temp], { stdio: 'inherit' });
+    if (process.platform === 'win32') {
+      const quote = (value) => String(value).replace(/'/g, "''");
+      execFileSync('powershell.exe', [
+        '-NoProfile', '-Command',
+        `Expand-Archive -LiteralPath '${quote(archive)}' -DestinationPath '${quote(temp)}' -Force`,
+      ], { stdio: 'inherit' });
+    } else {
+      execFileSync('unzip', ['-q', archive, '-d', temp], { stdio: 'inherit' });
+    }
     const identity = path.join(temp, 'EFAS_Identidad');
     const assets = {
       logo: path.join(identity, 'iconos', 'logo_horizontal_blanco_para_fondo_oscuro.png'),
