@@ -69,9 +69,6 @@
           ]
         }
       ],
-      "publisherName": [
-        "Notaría VE"
-      ],
       "legalTrademarks": "Notaría VE"
     },
     "nsis": {
@@ -86,5 +83,8 @@
     "publish": null,
     "copyright": "Copyright © 2026 Notaría VE"
   },
-  "description": "Software de gestión jurídica y notarial para profesionales del derecho en Venezuela."
+  "description": "Software de gestión jurídica y notarial para profesionales del derecho en Venezuela.",
+  "author": {
+    "name": "Notaría VE"
+  }
 }
