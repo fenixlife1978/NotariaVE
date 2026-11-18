@@ -190,7 +190,7 @@ test('rejects hardlinks and Windows case aliases of the active SQLite database',
 });
 
 
-const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive, VALID_ROLES } = require('../electron/access-policy.cjs');
+const { assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsActive, VALID_ROLES } = require('../electron/access-policy.cjs');
 
 test('enforces the four local roles and denies all unlisted roles', () => {
   assert.deepEqual(VALID_ROLES, ['admin', 'abogado', 'asistente', 'consulta']);
@@ -198,6 +198,13 @@ test('enforces the four local roles and denies all unlisted roles', () => {
   assert.throws(() => assertRoleAllowed('consulta', ['admin', 'abogado', 'asistente']), /no tiene permiso/);
   assert.doesNotThrow(() => assertValidRole('asistente'));
   assert.throws(() => assertValidRole('super-admin'), /Perfil de usuario no permitido/);
+});
+
+test('restricts backup, restore, import, and administration privileges to the admin role', () => {
+  assert.doesNotThrow(() => assertAdminOnly('admin'));
+  for (const role of ['abogado', 'asistente', 'consulta', 'unknown']) {
+    assert.throws(() => assertAdminOnly(role), /Solo el administrador local/);
+  }
 });
 
 test('prevents self-lockout and removal of the last active administrator', () => {
