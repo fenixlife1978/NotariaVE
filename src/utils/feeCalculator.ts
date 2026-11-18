@@ -177,8 +177,7 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
       basis: `Verificación de solvencia de patente de vehículos (Trimestres Municipales)`,
       amountBs: municipalVehicleTaxBs,
       amountUsd: municipalVehicleTaxBs / bcvRate,
-      category: 'tasa_municipal',
-    });
+      category: 'tasa_municipal',    });
   }
 
   // 4. TASA DE HABILITACIÓN EXPRÉS (si aplica)
@@ -228,6 +227,20 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
   } else {
     lawyerFeeUsd = 40;
     lawyerBasis = 'Tarifa mínima para redacción y visado de declaración jurada ($40 USD)';
+  }
+
+  // Modalidad seleccionada desde el presupuesto: se aplica a cualquier acto jurídico.
+  if (operationType !== 'venta-vehiculo') {
+    if (vehicleLawyerFeeMode === 'minimum') {
+      lawyerFeeUsd = 60;
+      lawyerBasis = 'Mínimo seleccionado por el abogado: US$ 60';
+    } else if (vehicleLawyerFeeMode === 'custom') {
+      lawyerFeeUsd = Math.max(0, Number(customVehicleLawyerFeeUsd) || 0);
+      lawyerBasis = 'Monto libre de honorarios indicado por el abogado';
+    } else {
+      lawyerFeeUsd = amountUsd * 0.03;
+      lawyerBasis = '3% de la cuantía declarada por el abogado';
+    }
   }
 
   const lawyerFeeBs = lawyerFeeUsd * bcvRate;
