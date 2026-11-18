@@ -1,0 +1,65 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { GEMINI_MODEL, GEMINI_ENDPOINT, generateGeminiClause } = require('../electron/gemini-provider.cjs');
+
+test('uses the current Flash model and sends a structured Spanish legal drafting request', async () => {
+  let request;
+  const result = await generateGeminiClause({
+    apiKey: 'test-key',
+    prompt: 'Redacta una cláusula de pago.',
+    currentClause: 'Texto previo.',
+    context: 'Compraventa; jurisdicción Caracas.',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: '  Cláusula propuesta.  ' }] } }] }) };
+    },
+  });
+
+  assert.equal(GEMINI_MODEL, 'gemini-3.8-flash');
+  assert.equal(request.url, GEMINI_ENDPOINT);
+  assert.equal(request.options.method, 'POST');
+  assert.equal(request.options.headers['x-goog-api-key'], 'test-key');
+  const body = JSON.parse(request.options.body);
+  const prompt = body.contents[0].parts[0].text;
+  assert.match(prompt, /Contexto de documento: Compraventa; jurisdicción Caracas\./);
+  assert.match(prompt, /Solicitud: Redacta una cláusula de pago\./);
+  assert.match(prompt, /Texto previo a adaptar: Texto previo\./);
+  assert.match(prompt, /No inventes citas normativas/);
+  assert.equal(prompt.includes('\\n\\n'), false);
+  assert.equal(result, 'Cláusula propuesta.');
+});
+
+test('uses a safe message when the free quota is exhausted', async () => {
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'test-key', prompt: 'Prueba',
+      fetchImpl: async () => ({ ok: false, status: 429, text: async () => 'quota exceeded' }),
+    }),
+    /Cuota gratuita agotada/,
+  );
+});
+
+test('limits provider error details', async () => {
+  const detail = 'x'.repeat(1000);
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'test-key', prompt: 'Prueba',
+      fetchImpl: async () => ({ ok: false, status: 400, text: async () => detail }),
+    }),
+    (error) => {
+      assert.match(error.message, /^Gemini respondió 400:/);
+      assert.ok(error.message.length < 350);
+      return true;
+    },
+  );
+});
+
+test('rejects successful responses that contain no generated text', async () => {
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'test-key', prompt: 'Prueba',
+      fetchImpl: async () => ({ ok: true, json: async () => ({ candidates: [] }) }),
+    }),
+    /Gemini no devolvió texto/,
+  );
+});
