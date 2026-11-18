@@ -192,55 +192,22 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
     });
   }
 
-  // 5. HONORARIOS MÍNIMOS SUGERIDOS DEL ABOGADO (Reglamento de Honorarios Mínimos de Abogados)
+  // 5. HONORARIOS DEL ABOGADO: modalidad expresamente elegida en el presupuesto.
   let lawyerFeeUsd = 0;
   let lawyerBasis = '';
-  if (operationType === 'venta-inmueble') {
-    lawyerFeeUsd = Math.max(amountUsd * 0.02, 250); // 2% del inmueble o mínimo $250
-    lawyerBasis = '2% del valor del inmueble o tarifa mínima para compraventa inmobiliaria ($250 USD)';
-  } else if (operationType === 'venta-vehiculo') {
-    if (vehicleLawyerFeeMode === 'minimum') {
-      lawyerFeeUsd = 60;
-      lawyerBasis = 'Mínimo seleccionado por el abogado: US$ 60';
-    } else if (vehicleLawyerFeeMode === 'custom') {
-      lawyerFeeUsd = Math.max(0, Number(customVehicleLawyerFeeUsd) || 0);
-      lawyerBasis = 'Monto libre de honorarios indicado por el abogado';
-    } else {
-      lawyerFeeUsd = amountUsd * 0.03;
-      lawyerBasis = '3% del valor declarado del vehículo';
+  if (vehicleLawyerFeeMode === 'minimum') {
+    lawyerFeeUsd = 60;
+    lawyerBasis = 'Mínimo seleccionado por el abogado: US$ 60';
+  } else if (vehicleLawyerFeeMode === 'custom') {
+    const customFee = Number(customVehicleLawyerFeeUsd);
+    if (!Number.isFinite(customFee) || customFee < 0) {
+      throw new Error('El monto libre de honorarios debe ser un número igual o mayor que cero.');
     }
-  } else if (operationType === 'constitucion-ca') {
-    lawyerFeeUsd = Math.max(amountUsd * 0.05, 180); // 5% o mínimo $180
-    lawyerBasis = '5% del capital o tarifa mínima para redacción y visado de estatutos mercantiles ($180 USD)';
-  } else if (operationType === 'firma-personal') {
-    lawyerFeeUsd = Math.max(amountUsd * 0.04, 100);
-    lawyerBasis = 'Tarifa mínima de visado mercantil para firma personal ($100 USD)';
-  } else if (operationType === 'poder-general') {
-    lawyerFeeUsd = 80;
-    lawyerBasis = 'Tarifa reglamentaria para Poder General con facultades amplias ($80 USD)';
-  } else if (operationType === 'poder-especial') {
-    lawyerFeeUsd = 50;
-    lawyerBasis = 'Tarifa reglamentaria para Poder Especial determinado ($50 USD)';
-  } else if (operationType === 'arrendamiento') {
-    lawyerFeeUsd = Math.max(amountUsd * 0.5, 90); // 50% de un mes de canon
-    lawyerBasis = '50% de un mes de canon o mínimo reglamentario ($90 USD)';
+    lawyerFeeUsd = customFee;
+    lawyerBasis = 'Monto libre acordado por el abogado: US$ ' + customFee.toFixed(2);
   } else {
-    lawyerFeeUsd = 40;
-    lawyerBasis = 'Tarifa mínima para redacción y visado de declaración jurada ($40 USD)';
-  }
-
-  // Modalidad seleccionada desde el presupuesto: se aplica a cualquier acto jurídico.
-  if (operationType !== 'venta-vehiculo') {
-    if (vehicleLawyerFeeMode === 'minimum') {
-      lawyerFeeUsd = 60;
-      lawyerBasis = 'Mínimo seleccionado por el abogado: US$ 60';
-    } else if (vehicleLawyerFeeMode === 'custom') {
-      lawyerFeeUsd = Math.max(0, Number(customVehicleLawyerFeeUsd) || 0);
-      lawyerBasis = 'Monto libre de honorarios indicado por el abogado';
-    } else {
-      lawyerFeeUsd = amountUsd * 0.03;
-      lawyerBasis = '3% de la cuantía declarada por el abogado';
-    }
+    lawyerFeeUsd = amountUsd * 0.03;
+    lawyerBasis = '3% de la cuantía declarada: US$ ' + lawyerFeeUsd.toFixed(2);
   }
 
   const lawyerFeeBs = lawyerFeeUsd * bcvRate;
