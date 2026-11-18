@@ -115,15 +115,28 @@ jobs:
           }
           const tag = `v${version}`;
           const tagExists = execFileSync('git', ['tag', '--list', tag], { encoding: 'utf8' }).trim() !== '';
-          const publish = version !== previous && !tagExists;
+          const subject = execFileSync('git', ['log', '-1', '--format=%s'], { encoding: 'utf8' }).trim();
+          const forceRepublish = subject === 'ci: republish NotariaVE v1.0.2 with matching checksum filename';
+          const publish = (version !== previous && !tagExists) || forceRepublish;
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\npublish=${publish}\n`);
-          console.log(`version=${version}; previous=${previous || '(none)'}; tagExists=${tagExists}; publish=${publish}`);
+          console.log(`version=${version}; previous=${previous || '(none)'}; tagExists=${tagExists}; forceRepublish=${forceRepublish}; publish=${publish}`);
           NODE
       - name: Download installer artifact from this workflow run
         uses: actions/download-artifact@v4
         with:
           name: NotariaVE-Windows-Installer
           path: release
+      - name: Normalize release filename and regenerate checksum
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -Path 'release' -Filter '*.exe' -File)
+          if ($installers.Count -ne 1) { throw "Se esperaba un instalador EXE; se encontraron $($installers.Count)." }
+          $name = "Notaria.VE.Setup.${{ steps.meta.outputs.version }}.exe"
+          if ($installers[0].Name -ne $name) {
+            Rename-Item -LiteralPath $installers[0].FullName -NewName $name
+          }
+          $hash = (Get-FileHash -LiteralPath "release/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $name" | Set-Content -Path 'release/SHA256SUMS.txt' -Encoding utf8NoBOM
       - name: Verify installer SHA-256
         run: |
           cd release
@@ -141,4 +154,5 @@ jobs:
           draft: false
           prerelease: false
           make_latest: true
+          overwrite_files: true
           fail_on_unmatched_files: true
