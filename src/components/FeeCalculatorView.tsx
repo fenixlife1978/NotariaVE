@@ -25,10 +25,13 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const [expressExpedited, setExpressExpedited] = useState<boolean>(false);
   const [vehicleLawyerFeeMode, setVehicleLawyerFeeMode] = useState<'percentage' | 'minimum' | 'custom'>('percentage');
   const [customVehicleLawyerFeeUsd, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
+  const [feeSettingsLoaded, setFeeSettingsLoaded] = useState(false);
   const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 0);
   const [isSavingRate, setIsSavingRate] = useState(false);
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   useEffect(() => setBcvRate(criteria.bcvRate || 0), [criteria.bcvRate]);
+  useEffect(() => { window.notariaDesktop.getSetting('lawyer_fee_mode').then((stored: any) => { if (stored && typeof stored === 'object') { if (['percentage','minimum','custom'].includes(stored.mode)) setVehicleLawyerFeeMode(stored.mode); if (Number.isFinite(Number(stored.customUsd)) && Number(stored.customUsd) >= 0) setCustomVehicleLawyerFeeUsd(Number(stored.customUsd)); } }).catch(() => undefined).finally(() => setFeeSettingsLoaded(true)); }, []);
+  useEffect(() => { if (feeSettingsLoaded) window.notariaDesktop.saveSetting('lawyer_fee_mode', { mode: vehicleLawyerFeeMode, customUsd: customVehicleLawyerFeeUsd }).catch(() => undefined); }, [feeSettingsLoaded, vehicleLawyerFeeMode, customVehicleLawyerFeeUsd]);
   const handleRateChange = (newRate: number) => setBcvRate(newRate);
   const handleSaveManualRate = async () => {
     setIsSavingRate(true);
