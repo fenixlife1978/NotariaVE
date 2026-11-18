@@ -8,7 +8,7 @@ const { createVerifiedBackup, verifyBackup } = require('./backup.cjs');
 const { validateLegacyExport, isSeedDemoClient, isSeedDemoLawyer, isSeedDemoCriteria } = require('./legacy-import.cjs');
 const { assertNotActiveDatabasePath } = require('./path-safety.cjs');
 const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
-const { assertRoleAllowed, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
+const { assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
 const { getBcvRateUrl, getCaracasDate, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
 
@@ -59,7 +59,7 @@ function requireRole(...roles) {
   return user;
 }
 
-function requireAdmin() { return requireRole('admin', 'abogado'); }
+function requireAdmin() { const user = requireSession(); assertAdminOnly(user.role); return user; }
 
 function writeAudit(actorId, action, entityType, entityId, details = {}) {
   db.prepare(`
