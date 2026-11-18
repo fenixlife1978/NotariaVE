@@ -2114,14 +2114,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 <span>{isRawEditing ? 'Ver Protocolo' : 'Editar Borrador'}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setIsAiModalOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-lg transition-colors"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Asistente AI</span>
-              </button>
+              {canSave && (
+                <button
+                  type="button"
+                  onClick={() => setIsAiModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Asistente AI</span>
+                </button>
+              )}
 
               <button
                 type="button"
