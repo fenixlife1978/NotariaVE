@@ -3,7 +3,7 @@ const path = require('node:path');
 const sharp = require('sharp');
 
 const root = path.resolve(__dirname, '..');
-const source = path.join(root, 'public', 'notariave-logo.webp');
+const source = path.join(root, 'public', 'notariave-icon.png');
 const sizes = [256, 128, 64, 48, 32, 16];
 
 function makeIco(images) {
@@ -29,31 +29,19 @@ function makeIco(images) {
   return Buffer.concat([directory, ...images.map((image) => image.png)]);
 }
 
-// Temporary brand-neutral vector shield, used only if the provided logo file is invalid.
-const fallbackSvg = Buffer.from(`
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
- <rect width="512" height="512" rx="88" fill="#071b35"/>
- <path d="M256 72 394 126v116c0 96-58 158-138 198-80-40-138-102-138-198V126z" fill="none" stroke="#d4af62" stroke-width="20" stroke-linejoin="round"/>
- <path d="M166 352V180h40l100 118V180h40v172h-40l-100-118v118z" fill="#d4af62"/>
-</svg>`);
-
 async function main() {
-  let input = source;
-  try {
-    if (!fs.existsSync(source)) throw new Error('Logo file missing');
-    await sharp(source).metadata();
-  } catch {
-    console.warn('Logo WebP inválido o ausente; se usará escudo vectorial provisional para los iconos del paquete.');
-    input = fallbackSvg;
+  if (!fs.existsSync(source)) {
+    throw new Error('No se encontró el icono original extraído del paquete de identidad EFAS. No se permite generar un icono genérico.');
+  }
+  const metadata = await sharp(source).metadata();
+  if (!metadata.width || !metadata.height || metadata.width !== metadata.height) {
+    throw new Error('El icono original debe ser una imagen cuadrada válida.');
   }
 
   const images = [];
   for (const size of sizes) {
-    const png = await sharp(input)
-      .resize(size, size, {
-        fit: 'contain',
-        background: { r: 7, g: 27, b: 53, alpha: 1 }
-      })
+    const png = await sharp(source)
+      .resize(size, size, { fit: 'contain' })
       .png()
       .toBuffer();
     if (png.readUInt32BE(0) !== 0x89504e47 || png.subarray(-8).toString('hex') !== '49454e44ae426082') {
@@ -63,16 +51,12 @@ async function main() {
   }
 
   const ico = makeIco(images);
-  const destinations = [
-    path.join(root, 'build', 'notariave.ico'),
-    path.join(root, 'public', 'favicon.ico')
-  ];
-  for (const destination of destinations) {
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.writeFileSync(destination, ico);
-  }
-  console.log(`Iconos generados y verificados: ${destinations.length} ICO, ${sizes.join('/')} px`);
+  const destination = path.join(root, 'build', 'notariave.ico');
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.writeFileSync(destination, ico);
+  console.log(`Icono Windows generado desde el original: ${sizes.join('/')} px; favicon original preservado.`);
 }
+
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
