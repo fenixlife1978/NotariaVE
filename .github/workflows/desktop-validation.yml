@@ -2,9 +2,10 @@ name: NotariaVE desktop validation
 
 on:
   push:
-    branches: [desktop-sqlite-migration]
+    branches: [main, desktop-sqlite-migration]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
