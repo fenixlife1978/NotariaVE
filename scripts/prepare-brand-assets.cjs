@@ -24,7 +24,8 @@ function main() {
     }
     const identity = path.join(temp, 'EFAS_Identidad');
     const assets = {
-      logo: path.join(identity, 'iconos', 'logo_horizontal_blanco_para_fondo_oscuro.png'),
+      logoLight: path.join(identity, 'iconos', 'logo_horizontal_fondo_blanco.png'),
+      logoDark: path.join(identity, 'iconos', 'logo_horizontal_blanco_para_fondo_oscuro.png'),
       icon: path.join(identity, 'iconos', 'icono_azul_512.png'),
       favicon: path.join(identity, 'iconos', 'favicon.ico'),
     };
@@ -34,7 +35,8 @@ function main() {
       }
     }
 
-    fs.copyFileSync(assets.logo, path.join(root, 'public', 'notariave-logo-horizontal.png'));
+    fs.copyFileSync(assets.logoLight, path.join(root, 'public', 'notariave-logo-horizontal.png'));
+    fs.copyFileSync(assets.logoDark, path.join(root, 'public', 'notariave-logo-horizontal-dark.png'));
     fs.copyFileSync(assets.icon, path.join(root, 'public', 'notariave-icon.png'));
     fs.copyFileSync(assets.favicon, path.join(root, 'public', 'favicon.ico'));
 
@@ -42,7 +44,7 @@ function main() {
     if (favicon.length < 6 || favicon.readUInt16LE(0) !== 0 || favicon.readUInt16LE(2) !== 1) {
       throw new Error('El favicon original no tiene una cabecera ICO válida.');
     }
-    console.log('Identidad original aplicada: logo horizontal blanco, icono azul 512px y favicon ICO original.');
+    console.log('Identidad original aplicada: logotipo horizontal para fondo claro y oscuro, icono azul 512px y favicon ICO original.');
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
