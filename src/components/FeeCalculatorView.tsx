@@ -264,7 +264,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
                   className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
                 >
                   <option value="percentage">3 % de la cuantía declarada</option>
-                  <option value="minimum">Mínimo reglamentario ($60)</option>
+                  <option value="minimum">Mínimo fijo de referencia (US$60)</option>
                   <option value="custom">Monto libre</option>
                 </select>
               </div>
@@ -285,7 +285,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
                 </div>
               )}
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                La modalidad elegida se aplica a cualquier tipo de acto y se refleja en el desglose, el total y el presupuesto imprimible o descargable.
+                La modalidad elegida se aplica a cualquier tipo de acto y se refleja en el desglose, el total y el presupuesto imprimible o descargable. El monto fijo de US$60 es una referencia configurable; verifica el tabulador gremial vigente aplicable al servicio antes de emitir el presupuesto.
               </p>
           </div>
           {/* Amount declared */}
