@@ -11,6 +11,7 @@ const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
 const { assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
 const { getBcvRateUrl, getCaracasDate, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
+const { generateGeminiClause } = require('./gemini-provider.cjs');
 
 let mainWindow;
 let db;
@@ -774,20 +775,7 @@ function registerIpc() {
     const encrypted = JSON.parse(row.setting_value);
     const apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
     const context = String(input.context || '').slice(0, 2000);
-    const userPrompt = [`Contexto de documento: ${context || 'Documento notarial venezolano'}`, `Solicitud: ${prompt}`, prior ? `Texto previo a adaptar: ${prior}` : 'No se suministró texto previo.', 'Redacta una propuesta en español jurídico claro. No inventes citas normativas, artículos, precedentes ni requisitos. Señala brevemente los aspectos que requieren verificación profesional, fuera del texto de cláusula.'].join('\n\n');
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: userPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 2500 } }),
-      signal: AbortSignal.timeout(60000),
-    });
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      throw new Error(response.status === 429 ? 'Cuota gratuita agotada o límite temporal. Intenta más tarde.' : `Gemini respondió ${response.status}: ${errorText.slice(0, 300)}`);
-    }
-    const payload = await response.json();
-    const text = payload?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
-    if (!text) throw new Error('Gemini no devolvió texto. Reintenta.');
+    const text = await generateGeminiClause({ apiKey, prompt, currentClause: prior, context });
     writeAudit(actor.id, 'ai_clause_generated', 'document_draft', 'unsaved', { provider: 'gemini', promptLength: prompt.length, priorTextLength: prior.length });
     return { text };
   });
