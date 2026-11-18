@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, safeStorage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -733,6 +733,63 @@ function registerIpc() {
         { previousRate: previous, newRate: rate, effectiveDate: record.effectiveDate });
     })();
     return { ok: true, criteria: updatedCriteria, record };
+  });
+
+  handleIpc('ai:get-status', () => {
+    requireSession();
+    const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
+    return { configured: Boolean(row && row.setting_value) };
+  });
+
+  handleIpc('ai:save-key', (_event, input = {}) => {
+    const actor = requireRole('admin', 'abogado');
+    const apiKey = String(input.apiKey || '').trim();
+    if (!apiKey || apiKey.length > 500) throw new Error('API key inválida.');
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local del sistema no está disponible; no se guardará la clave.');
+    const encrypted = safeStorage.encryptString(apiKey).toString('base64');
+    db.prepare(`
+      INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
+    `).run('ai_gemini_key_encrypted', JSON.stringify(encrypted), now());
+    writeAudit(actor.id, 'ai_provider_key_saved', 'setting', 'gemini');
+    return { saved: true };
+  });
+
+  handleIpc('ai:clear-key', () => {
+    const actor = requireRole('admin', 'abogado');
+    db.prepare('DELETE FROM app_settings WHERE setting_key = ?').run('ai_gemini_key_encrypted');
+    writeAudit(actor.id, 'ai_provider_key_removed', 'setting', 'gemini');
+    return { removed: true };
+  });
+
+  handleIpc('ai:generate-clause', async (_event, input = {}) => {
+    const actor = requireRole('admin', 'abogado');
+    if (input.consent !== true) throw new Error('Confirma expresamente el envío de este texto al proveedor externo.');
+    const prompt = String(input.prompt || '').trim();
+    const prior = String(input.currentClause || '').trim();
+    if (!prompt || prompt.length > 12000 || prior.length > 20000) throw new Error('El texto solicitado excede el límite permitido.');
+    const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
+    if (!row) throw new Error('Configura primero tu API key gratuita de Gemini.');
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local no está disponible.');
+    const encrypted = JSON.parse(row.setting_value);
+    const apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+    const context = String(input.context || '').slice(0, 2000);
+    const userPrompt = [`Contexto de documento: ${context || 'Documento notarial venezolano'}`, `Solicitud: ${prompt}`, prior ? `Texto previo a adaptar: ${prior}` : 'No se suministró texto previo.', 'Redacta una propuesta en español jurídico claro. No inventes citas normativas, artículos, precedentes ni requisitos. Señala brevemente los aspectos que requieren verificación profesional, fuera del texto de cláusula.'].join('\\n\\n');
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: userPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 2500 } }),
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(response.status === 429 ? 'Cuota gratuita agotada o límite temporal. Intenta más tarde.' : `Gemini respondió ${response.status}: ${errorText.slice(0, 300)}`);
+    }
+    const payload = await response.json();
+    const text = payload?.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
+    if (!text) throw new Error('Gemini no devolvió texto. Reintenta.');
+    writeAudit(actor.id, 'ai_clause_generated', 'document_draft', 'unsaved', { provider: 'gemini', promptLength: prompt.length, priorTextLength: prior.length });
+    return { text };
   });
 
   handleIpc('settings:get', (_event, key) => {
