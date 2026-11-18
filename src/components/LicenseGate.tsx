@@ -70,7 +70,7 @@ export const LicenseGate: React.FC<Props> = ({ status, onContinue, onActivated }
       style={{ backgroundImage: "linear-gradient(110deg, rgba(2,8,23,.08), rgba(3,13,35,.02) 52%, rgba(2,8,23,.10)), url('./login-background.svg')", backgroundPosition: 'center', backgroundSize: 'cover' }}>
       <section className="w-full max-w-[520px]">
         <div className="mb-7 flex justify-center">
-          <img src="./notariave-logo-horizontal.svg" alt="Notaría VE" className="h-auto w-full max-w-[350px] drop-shadow-xl" />
+          <img src="./notariave-logo-horizontal-dark.png" alt="Notaría VE" className="h-auto w-full max-w-[350px] drop-shadow-xl" />
         </div>
         <div className="rounded-[26px] border border-white/15 bg-[#071a35]/85 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           <div className="mb-5 flex items-center gap-3">
