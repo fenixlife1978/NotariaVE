@@ -24,8 +24,8 @@ function main() {
     }
     const identity = path.join(temp, 'EFAS_Identidad');
     const assets = {
-      logoLight: path.join(identity, 'iconos', 'logo_horizontal_transparente.png'),
-      logoDark: path.join(identity, 'iconos', 'logo_horizontal_blanco_para_fondo_oscuro.png'),
+      logoLight: path.join(identity, 'logo_horizontal_transparente.png'),
+      logoDark: path.join(identity, 'logo_horizontal_blanco_para_fondo_oscuro.png'),
       icon: path.join(identity, 'iconos', 'icono_azul_512.png'),
       favicon: path.join(identity, 'iconos', 'favicon.ico'),
     };
