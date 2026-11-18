@@ -6,6 +6,10 @@ function assertRoleAllowed(role, allowedRoles) {
   }
 }
 
+function assertAdminOnly(role) {
+  if (role !== 'admin') throw new Error('Solo el administrador local puede realizar esta operación.');
+}
+
 function assertValidRole(role) {
   if (!VALID_ROLES.includes(role)) throw new Error('Perfil de usuario no permitido.');
 }
@@ -20,4 +24,4 @@ function assertAdminRemainsActive({ actorId, targetId, targetRole, nextRole, nex
   }
 }
 
-module.exports = { VALID_ROLES, assertRoleAllowed, assertValidRole, assertAdminRemainsActive };
+module.exports = { VALID_ROLES, assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsActive };
