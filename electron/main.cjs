@@ -775,7 +775,7 @@ function registerIpc() {
     const apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
     const context = String(input.context || '').slice(0, 2000);
     const userPrompt = [`Contexto de documento: ${context || 'Documento notarial venezolano'}`, `Solicitud: ${prompt}`, prior ? `Texto previo a adaptar: ${prior}` : 'No se suministró texto previo.', 'Redacta una propuesta en español jurídico claro. No inventes citas normativas, artículos, precedentes ni requisitos. Señala brevemente los aspectos que requieren verificación profesional, fuera del texto de cláusula.'].join('\\n\\n');
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: userPrompt }] }], generationConfig: { temperature: 0.3, maxOutputTokens: 2500 } }),
