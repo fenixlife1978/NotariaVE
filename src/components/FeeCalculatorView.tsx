@@ -251,7 +251,6 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
           </div>
 
           <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
-            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
                   Modalidad de honorarios del abogado (aplicable a este presupuesto):
@@ -285,7 +284,6 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 La modalidad elegida se refleja en el desglose, el total y el presupuesto imprimible o descargable.
               </p>
-            </div> 
           </div>
           {/* Amount declared */}
           <div>
