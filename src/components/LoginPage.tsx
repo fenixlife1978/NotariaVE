@@ -48,9 +48,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       <section className="w-full max-w-[430px]">
         <div className="mb-8 flex justify-center">
           <img
-            src="./notariave-logo.webp"
+            src="./notariave-logo-horizontal-dark.png"
             alt="Notaría VE | Software para abogados"
-            className="h-auto w-full max-w-[370px] drop-shadow-[0_12px_30px_rgba(0,0,0,.28)]"
+            className="h-auto w-full max-w-[370px] object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,.28)]"
           />
         </div>
 

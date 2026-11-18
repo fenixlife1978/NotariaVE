@@ -25,6 +25,10 @@ declare global {
       listAuditEvents(input?: { limit?: number; offset?: number }): Promise<Array<{ id: number; actorUserId: string | null; actorUsername?: string; actorFullName?: string; action: string; entityType: string; entityId?: string; detailsJson: string; details: Record<string, unknown>; createdAt: string }>>;
       getSetting(key: string): Promise<unknown>;
       saveSetting(key: string, value: unknown): Promise<{ saved: boolean }>;
+      getAiStatus(): Promise<{ configured: boolean }>;
+      saveAiKey(apiKey: string): Promise<{ saved: boolean }>;
+      clearAiKey(): Promise<{ removed: boolean }>;
+      generateAiClause(input: { prompt: string; currentClause?: string; context?: string; consent: boolean }): Promise<{ text: string }>;
       refreshBcvRate(input?: { force?: boolean }): Promise<{ ok: boolean; applied?: boolean; criteria?: import('./legal').SarenCriteriaConfig; record?: { rate: number; source: string; effectiveDate: string }; error?: string }>;
       saveManualBcvRate(input: { rate: number; effectiveDate?: string }): Promise<{ ok: boolean; criteria: import('./legal').SarenCriteriaConfig; record: { rate: number; source: string; effectiveDate: string } }>;
       listUsers(): Promise<Array<{ id: string; username: string; fullName: string; role: 'admin' | 'abogado' | 'asistente' | 'consulta'; active: boolean; createdAt: string; updatedAt: string }>>;

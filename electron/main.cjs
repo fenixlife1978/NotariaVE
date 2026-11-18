@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog, safeStorage } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -11,6 +11,7 @@ const { getLicenseStatus, saveLicenseActivation } = require('./licensing.cjs');
 const { assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsActive } = require('./access-policy.cjs');
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
 const { getBcvRateUrl, getCaracasDate, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
+const { generateGeminiClause } = require('./gemini-provider.cjs');
 
 let mainWindow;
 let db;
@@ -735,9 +736,53 @@ function registerIpc() {
     return { ok: true, criteria: updatedCriteria, record };
   });
 
+  handleIpc('ai:get-status', () => {
+    requireSession();
+    const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
+    return { configured: Boolean(row && row.setting_value) };
+  });
+
+  handleIpc('ai:save-key', (_event, input = {}) => {
+    const actor = requireRole('admin', 'abogado');
+    const apiKey = String(input.apiKey || '').trim();
+    if (!apiKey || apiKey.length > 500) throw new Error('API key inválida.');
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local del sistema no está disponible; no se guardará la clave.');
+    const encrypted = safeStorage.encryptString(apiKey).toString('base64');
+    db.prepare(`
+      INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
+      ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
+    `).run('ai_gemini_key_encrypted', JSON.stringify(encrypted), now());
+    writeAudit(actor.id, 'ai_provider_key_saved', 'setting', 'gemini');
+    return { saved: true };
+  });
+
+  handleIpc('ai:clear-key', () => {
+    const actor = requireRole('admin', 'abogado');
+    db.prepare('DELETE FROM app_settings WHERE setting_key = ?').run('ai_gemini_key_encrypted');
+    writeAudit(actor.id, 'ai_provider_key_removed', 'setting', 'gemini');
+    return { removed: true };
+  });
+
+  handleIpc('ai:generate-clause', async (_event, input = {}) => {
+    const actor = requireRole('admin', 'abogado');
+    if (input.consent !== true) throw new Error('Confirma expresamente el envío de este texto al proveedor externo.');
+    const prompt = String(input.prompt || '').trim();
+    const prior = String(input.currentClause || '').trim();
+    if (!prompt || prompt.length > 12000 || prior.length > 20000) throw new Error('El texto solicitado excede el límite permitido.');
+    const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
+    if (!row) throw new Error('Configura primero tu API key gratuita de Gemini.');
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local no está disponible.');
+    const encrypted = JSON.parse(row.setting_value);
+    const apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+    const context = String(input.context || '').slice(0, 2000);
+    const text = await generateGeminiClause({ apiKey, prompt, currentClause: prior, context });
+    writeAudit(actor.id, 'ai_clause_generated', 'document_draft', 'unsaved', { provider: 'gemini', promptLength: prompt.length, priorTextLength: prior.length });
+    return { text };
+  });
+
   handleIpc('settings:get', (_event, key) => {
     requireSession();
-    const allowed = new Set(['lawyer_profile', 'saren_criteria']);
+    const allowed = new Set(['lawyer_profile', 'saren_criteria', 'lawyer_fee_mode']);
     if (!allowed.has(String(key))) throw new Error('Parámetro no permitido.');
     const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get(key);
     return row ? JSON.parse(row.setting_value) : null;
@@ -746,7 +791,7 @@ function registerIpc() {
   handleIpc('settings:save', (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado');
     const key = String(input.key || '');
-    const allowed = new Set(['lawyer_profile', 'saren_criteria']);
+    const allowed = new Set(['lawyer_profile', 'saren_criteria', 'lawyer_fee_mode']);
     if (!allowed.has(key)) throw new Error('Parámetro no permitido.');
     if (key === 'saren_criteria' && actor.role !== 'admin') throw new Error('Solo el administrador puede modificar los criterios generales SAREN.');
     const value = JSON.stringify(input.value ?? null);

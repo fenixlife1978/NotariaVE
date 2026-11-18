@@ -25,10 +25,13 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const [expressExpedited, setExpressExpedited] = useState<boolean>(false);
   const [vehicleLawyerFeeMode, setVehicleLawyerFeeMode] = useState<'percentage' | 'minimum' | 'custom'>('percentage');
   const [customVehicleLawyerFeeUsd, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
+  const [feeSettingsLoaded, setFeeSettingsLoaded] = useState(false);
   const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 0);
   const [isSavingRate, setIsSavingRate] = useState(false);
   const [isRefreshingRate, setIsRefreshingRate] = useState(false);
   useEffect(() => setBcvRate(criteria.bcvRate || 0), [criteria.bcvRate]);
+  useEffect(() => { window.notariaDesktop.getSetting('lawyer_fee_mode').then((stored: any) => { if (stored && typeof stored === 'object') { if (['percentage','minimum','custom'].includes(stored.mode)) setVehicleLawyerFeeMode(stored.mode); if (Number.isFinite(Number(stored.customUsd)) && Number(stored.customUsd) >= 0) setCustomVehicleLawyerFeeUsd(Number(stored.customUsd)); } }).catch(() => undefined).finally(() => setFeeSettingsLoaded(true)); }, []);
+  useEffect(() => { if (feeSettingsLoaded) window.notariaDesktop.saveSetting('lawyer_fee_mode', { mode: vehicleLawyerFeeMode, customUsd: customVehicleLawyerFeeUsd }).catch(() => undefined); }, [feeSettingsLoaded, vehicleLawyerFeeMode, customVehicleLawyerFeeUsd]);
   const handleRateChange = (newRate: number) => setBcvRate(newRate);
   const handleSaveManualRate = async () => {
     setIsSavingRate(true);
@@ -147,8 +150,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Inputs (5 cols) */}
-        <div className="lg:col-span-5 space-y-5 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+        {/* Left Inputs (5 cols) */}        <div className="lg:col-span-5 space-y-5 bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
             <Building className="w-4 h-4 text-amber-500" />
             Parámetros del Trámite y Jurisdicción
@@ -251,19 +253,18 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
             </select>
           </div>
 
-          {operationType === 'venta-vehiculo' && (
-            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
+          <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
-                  Modalidad de honorarios del abogado:
+                  Honorarios profesionales del abogado para este presupuesto:
                 </label>
                 <select
                   value={vehicleLawyerFeeMode}
                   onChange={(e) => setVehicleLawyerFeeMode(e.target.value as 'percentage' | 'minimum' | 'custom')}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
                 >
-                  <option value="percentage">3 % del valor del vehículo</option>
-                  <option value="minimum">Mínimo reglamentario ($60)</option>
+                  <option value="percentage">3 % de la cuantía declarada</option>
+                  <option value="minimum">Mínimo fijo de referencia (US$60)</option>
                   <option value="custom">Monto libre</option>
                 </select>
               </div>
@@ -284,11 +285,9 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
                 </div>
               )}
               <p className="text-[11px] text-slate-600 dark:text-slate-400">
-                La modalidad elegida se refleja en el desglose, el total y el presupuesto imprimible o descargable.
+                La modalidad elegida se aplica a cualquier tipo de acto y se refleja en el desglose, el total y el presupuesto imprimible o descargable. El monto fijo de US$60 es una referencia configurable; verifica el tabulador gremial vigente aplicable al servicio antes de emitir el presupuesto.
               </p>
-            </div>
-          )}
-
+          </div>
           {/* Amount declared */}
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -297,8 +296,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
               </label>
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded">
                 <button
-                  type="button"
-                  onClick={() => setCurrency('USD')}
+                  type="button"                  onClick={() => setCurrency('USD')}
                   className={`px-2 py-0.5 text-[10px] font-semibold rounded ${
                     currency === 'USD'
                       ? 'bg-amber-400 text-slate-950 shadow-xs'
@@ -447,8 +445,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
           {!hasValidBcvRate ? (
             <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-800 dark:text-amber-200">
               No hay una tasa BCV válida guardada. Introduzca manualmente la tasa vigente y verifique su fuente y fecha antes de calcular. No se utilizará una tasa ficticia.
-            </div>
-          ) : <>
+            </div>          ) : <>
           {/* Main Total Highlight Card */}
           <div className="bg-slate-900 text-white rounded-xl p-6 border border-slate-800 shadow-sm relative overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

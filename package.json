@@ -1,17 +1,17 @@
 {
   "name": "notariave-desktop",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "scripts": {
     "dev": "npm run desktop:dev",
-    "build": "vite build",
-    "build:renderer": "vite build --base=./",
+    "build": "node scripts/prepare-brand-assets.cjs && vite build",
+    "build:renderer": "node scripts/prepare-brand-assets.cjs && vite build --base=./",
     "start": "electron .",
     "clean": "node -e \"for (const p of ['dist','release']) require('node:fs').rmSync(p,{recursive:true,force:true})\"",
     "lint": "tsc --noEmit",
     "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
-    "desktop:build": "node scripts/generate-icons.cjs && npm run build:renderer && electron-builder --win nsis",
+    "desktop:build": "node scripts/prepare-brand-assets.cjs && node scripts/generate-icons.cjs && vite build --base=./ && electron-builder --win nsis",
     "postinstall": "electron-builder install-app-deps",
     "test": "node --test"
   },
@@ -68,14 +68,23 @@
             "x64"
           ]
         }
-      ]
+      ],
+      "legalTrademarks": "Notaría VE"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/notariave.ico",
+      "uninstallerIcon": "build/notariave.ico",
+      "installerHeaderIcon": "build/notariave.ico"
     },
-    "publish": null
+    "publish": null,
+    "copyright": "Copyright © 2026 Notaría VE"
+  },
+  "description": "Software de gestión jurídica y notarial para profesionales del derecho en Venezuela.",
+  "author": {
+    "name": "Notaría VE"
   }
 }
