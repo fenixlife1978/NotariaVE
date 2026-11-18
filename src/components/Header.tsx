@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onNewDo
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-4 min-h-16 py-2">
           <button onClick={() => setActiveTab('editor')} className="flex items-center gap-3 shrink-0 text-lg font-bold tracking-tight hover:text-amber-400">
-            <img src="./notariave-logo-horizontal.png" alt="Notaría VE" className="h-9 w-auto max-w-[156px] object-contain" />
+            <img src="./notariave-logo-horizontal-dark.png" alt="Notaría VE" className="h-9 w-auto max-w-[156px] object-contain" />
           </button>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs sm:text-sm font-medium">
             {nav.map((item) => <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex items-center gap-1.5 py-1 whitespace-nowrap transition-colors ${activeTab === item.id ? 'text-amber-400 border-b-2 border-amber-400 font-semibold' : 'text-slate-300 hover:text-white'}`}>{item.icon}<span>{item.label}</span></button>)}
