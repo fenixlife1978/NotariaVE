@@ -65,7 +65,8 @@ jobs:
             if ($actual -ne $expected[$field]) { throw "Metadato $field incorrecto. Esperado '$($expected[$field])'; recibido '$actual'." }
           }
           if ($info.LegalCopyright -notlike '*Notaría VE*') { throw "Falta el copyright de Notaría VE." }
-          if ($info.ProductVersion -notlike '1.0.2*') { throw "Versión del ejecutable incorrecta: $($info.ProductVersion)" }
+          $expectedVersion = (Get-Content 'package.json' -Raw | ConvertFrom-Json).version
+          if ($info.ProductVersion -notlike "$expectedVersion*") { throw "Versión del ejecutable incorrecta. Esperada: $expectedVersion; recibida: $($info.ProductVersion)" }
           Write-Host "Metadatos verificados: $($info.ProductName), $($info.CompanyName), $($info.ProductVersion)."
       - name: Generate installer SHA-256 checksum
         shell: pwsh
@@ -147,7 +148,7 @@ jobs:
         with:
           tag_name: v${{ steps.meta.outputs.version }}
           name: Notaría VE v${{ steps.meta.outputs.version }}
-          body_path: docs/releases/1.0.2.md
+          body_path: docs/releases/${{ steps.meta.outputs.version }}.md
           files: |
             release/*.exe
             release/SHA256SUMS.txt
