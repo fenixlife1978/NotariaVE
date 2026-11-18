@@ -5,96 +5,138 @@
 
 import React, { useState, useEffect } from 'react';
 import { LoginPage } from './components/LoginPage';
+import { SetupAdminPage } from './components/SetupAdminPage';
+import { LicenseGate } from './components/LicenseGate';
 import { Header } from './components/Header';
 import { DocumentEditor } from './components/DocumentEditor';
 import { FeeCalculatorView } from './components/FeeCalculatorView';
 import { ClientDirectory } from './components/ClientDirectory';
 import { SarenSettingsView } from './components/SarenSettingsModal';
-import {
-  INITIAL_CLIENTS,
-  INITIAL_LAWYER,
-  INITIAL_SAREN_CRITERIA,
-} from './data/initialData';
+import { BackupManager } from './components/BackupManager';
+import { LegacyImportManager } from './components/LegacyImportManager';
+import { UserAdministration } from './components/UserAdministration';
+import { AttachmentManager } from './components/AttachmentManager';
+import { LawyerProfileSettings } from './components/LawyerProfileSettings';
+import { AuditLogView } from './components/AuditLogView';
+import { INITIAL_LAWYER, INITIAL_SAREN_CRITERIA } from './data/initialData';
 import { ClientParty, LawyerProfile, SarenCriteriaConfig, DocumentFormData } from './types/legal';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(() => {
-    const saved = localStorage.getItem('mvp_notaria_user');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return null;
-  });
+  const [currentUser, setCurrentUser] = useState<{ username: string; role: string; fullName: string } | null>(null);
+  const [needsInitialAdmin, setNeedsInitialAdmin] = useState(false);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
+  const [showLicenseGate, setShowLicenseGate] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [desktopError, setDesktopError] = useState<string | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [bcvStatus, setBcvStatus] = useState('');
 
-  const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings'>('editor');
+  useEffect(() => {
+    window.notariaDesktop.getStatus()
+      .then((status) => {
+        setNeedsInitialAdmin(status.needsInitialAdmin);
+        setLicenseStatus(status.license);
+        setShowLicenseGate(status.license.state !== 'active');
+      })
+      .catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudo abrir la base de datos local.'))
+      .finally(() => setIsCheckingAuth(false));
+  }, []);
 
-  // Persistence in localStorage
-  const [clients, setClients] = useState<ClientParty[]>(() => {
-    const saved = localStorage.getItem('notariadoc_clients');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_CLIENTS;
-  });
+  const [activeTab, setActiveTab] = useState<'editor' | 'calculator' | 'clients' | 'settings' | 'users' | 'attachments' | 'profile' | 'audit'>('editor');
 
-  const [lawyer, setLawyer] = useState<LawyerProfile>(() => {
-    const saved = localStorage.getItem('notariadoc_lawyer');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_LAWYER;
-  });
-
-  const [criteria, setCriteria] = useState<SarenCriteriaConfig>(() => {
-    const saved = localStorage.getItem('notariadoc_criteria');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_SAREN_CRITERIA;
-  });
-
-  // Active form data to pass to editor
+  const [clients, setClients] = useState<ClientParty[]>([]);
+  const [lawyer, setLawyer] = useState<LawyerProfile>(INITIAL_LAWYER);
+  const [criteria, setCriteria] = useState<SarenCriteriaConfig>(INITIAL_SAREN_CRITERIA);
   const [editorFormData, setEditorFormData] = useState<DocumentFormData | null>(null);
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0);
+  const [savedDocuments, setSavedDocuments] = useState<Array<{ id: string; title: string; templateId: string; updatedAt: string; revision: number; payload: any }>>([]);
 
   useEffect(() => {
-    localStorage.setItem('notariadoc_clients', JSON.stringify(clients));
-  }, [clients]);
+    if (!currentUser || !licenseStatus?.allowed || showLicenseGate) return;
+    let cancelled = false;
+    setIsLoadingData(true);
+    (async () => {
+      const [storedClients, storedLawyer, storedCriteria, storedDocuments] = await Promise.all([
+        window.notariaDesktop.listClients(),
+        window.notariaDesktop.getSetting('lawyer_profile'),
+        window.notariaDesktop.getSetting('saren_criteria'),
+        window.notariaDesktop.listDocuments(),
+      ]);
+      if (cancelled) return;
+      setClients(storedClients as ClientParty[]);
+      setSavedDocuments(storedDocuments);
+      setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
+      const initialCriteria = (storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA;
+      setCriteria(initialCriteria);
+      void window.notariaDesktop.refreshBcvRate().then((refreshedBcv) => {
+        if (cancelled) return;
+        if (refreshedBcv.ok) {
+          setCriteria({ ...initialCriteria, ...(refreshedBcv.criteria as SarenCriteriaConfig) });
+          setBcvStatus(refreshedBcv.applied === false ? 'BCV consultado; se conserva la tasa manual que elegiste.' : 'Tasa BCV actualizada automáticamente.');
+        } else {
+          setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
+        }
+      }).catch(() => {
+        if (!cancelled) setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
+      });
+    })().catch((error) => setDesktopError(error instanceof Error ? error.message : 'No se pudieron cargar los datos SQLite locales.')).finally(() => { if (!cancelled) setIsLoadingData(false); });
+    return () => { cancelled = true; };
+  }, [currentUser, licenseStatus?.allowed, showLicenseGate]);
+
 
   useEffect(() => {
-    localStorage.setItem('notariadoc_lawyer', JSON.stringify(lawyer));
-  }, [lawyer]);
+    if (!['trial', 'active'].includes(licenseStatus?.state || '')) return;
+    const timer = window.setInterval(() => {
+      window.notariaDesktop.getLicenseStatus().then((latest) => {
+        setLicenseStatus(latest);
+        if (!latest.allowed) setShowLicenseGate(true);
+      }).catch(() => undefined);
+    }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [licenseStatus?.state]);
 
-  useEffect(() => {
-    localStorage.setItem('notariadoc_criteria', JSON.stringify(criteria));
-  }, [criteria]);
-
-  // Client Directory Handlers
-  const handleAddClient = (newClient: ClientParty) => {
-    setClients((prev) => [newClient, ...prev]);
+  const handleRefreshLocalData = async () => {
+    const [storedClients, storedLawyer, storedCriteria, storedDocuments] = await Promise.all([
+      window.notariaDesktop.listClients(),
+      window.notariaDesktop.getSetting('lawyer_profile'),
+      window.notariaDesktop.getSetting('saren_criteria'),
+      window.notariaDesktop.listDocuments(),
+    ]);
+    setClients(storedClients as unknown as ClientParty[]);
+    setLawyer((storedLawyer as LawyerProfile | null) || INITIAL_LAWYER);
+    setCriteria((storedCriteria as SarenCriteriaConfig | null) || INITIAL_SAREN_CRITERIA);
+    setSavedDocuments(storedDocuments);
   };
 
-  const handleUpdateClient = (updatedClient: ClientParty) => {
-    setClients((prev) => prev.map((c) => (c.id === updatedClient.id ? updatedClient : c)));
+  const handleSaveDocument = async (input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }) => {
+    const saved = await window.notariaDesktop.saveDocument(input);
+    setSavedDocuments((previous) => [saved, ...previous.filter((item) => item.id !== saved.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+    return saved;
   };
 
-  const handleDeleteClient = (id: string) => {
-    setClients((prev) => prev.filter((c) => c.id !== id));
+  const handleAddClient = async (newClient: ClientParty) => {
+    const saved = await window.notariaDesktop.saveClient(newClient);
+    setClients((prev) => [saved as ClientParty, ...prev]);
+  };
+
+  const handleUpdateClient = async (updatedClient: ClientParty) => {
+    const saved = await window.notariaDesktop.saveClient(updatedClient);
+    setClients((prev) => prev.map((client) => client.id === updatedClient.id ? saved as ClientParty : client));
+  };
+
+  const handleDeleteClient = async (id: string) => {
+    await window.notariaDesktop.deleteClient(id);
+    setClients((prev) => prev.filter((client) => client.id !== id));
+  };
+
+  const handleUpdateLawyer = async (updated: LawyerProfile) => {
+    await window.notariaDesktop.saveSetting('lawyer_profile', updated);
+    setLawyer(updated);
+  };
+
+  const handleUpdateCriteria = async (updated: SarenCriteriaConfig) => {
+    await window.notariaDesktop.saveSetting('saren_criteria', updated);
+    setCriteria(updated);
   };
 
   // 1-Click transfer from Client Directory to Document
@@ -104,11 +146,11 @@ export default function App() {
         templateId: 'venta-vehiculo',
         title: 'VENTA DE VEHÍCULO AUTOMOTOR',
         date: new Date().toLocaleDateString('es-VE'),
-        city: 'Caracas',
+        city: '',
         state: criteria.state,
         municipality: criteria.municipality || 'Libertador',
-        grantor: role === 'grantor' ? client : clients[0] || {},
-        grantee: role === 'grantee' ? client : clients[1] || {},
+        grantor: role === 'grantor' ? client : {},
+        grantee: role === 'grantee' ? client : {},
         includeOriginOfFunds: true,
         includeLawyerVisa: true,
         includeArbitrationClause: false,
@@ -136,27 +178,48 @@ export default function App() {
 
   const handleNewDocument = () => {
     setEditorFormData(null);
+    setEditorInstanceKey((value) => value + 1);
     setActiveTab('editor');
   };
 
-  const handleUpdateBcvRate = (rate: number) => {
-    setCriteria((prev) => ({ ...prev, bcvRate: rate }));
+  const handleUpdateBcvRate = async (rate: number) => {
+    const result = await window.notariaDesktop.saveManualBcvRate({ rate });
+    setCriteria({ ...criteria, ...(result.criteria as SarenCriteriaConfig) });
+    setBcvStatus('Tasa editada y guardada manualmente.');
+  };
+
+  const handleRefreshBcvRate = async () => {
+    setBcvStatus('Consultando tasa BCV…');
+    const result = await window.notariaDesktop.refreshBcvRate({ force: true });
+    if (result.ok) {
+      setCriteria({ ...criteria, ...(result.criteria as SarenCriteriaConfig) });
+      setBcvStatus('Tasa BCV actualizada automáticamente.');
+    } else {
+      setBcvStatus('No se pudo consultar el BCV; se conserva la última tasa guardada.');
+    }
   };
 
   const handleLogin = (user: { username: string; role: string; fullName: string }) => {
     setCurrentUser(user);
-    localStorage.setItem('mvp_notaria_user', JSON.stringify(user));
+    setNeedsInitialAdmin(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await window.notariaDesktop.logout();
     setCurrentUser(null);
-    localStorage.removeItem('mvp_notaria_user');
   };
 
-  // If not logged in, show full-screen LoginPage with centered scale logo and Efas Freelancer attribution
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLogin} />;
+  if (isCheckingAuth) {
+    return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Comprobando base SQLite local…</main>;
   }
+  if (desktopError) {
+    return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center p-6"><div className="max-w-lg text-center"><h1 className="text-xl font-bold">No se pudo iniciar NotariaVE</h1><p className="mt-3 text-sm text-rose-300">{desktopError}</p><p className="mt-2 text-sm text-slate-400">La aplicación requiere su entorno de escritorio y su base SQLite local. No se intentará conectar a ningún servicio remoto.</p></div></main>;
+  }
+  if (needsInitialAdmin) return <SetupAdminPage onCreated={() => { setNeedsInitialAdmin(false); setCurrentUser(null); }} />;
+  if (!licenseStatus) return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Comprobando licencia local…</main>;
+  if (showLicenseGate || !licenseStatus.allowed) return <LicenseGate status={licenseStatus} onContinue={() => setShowLicenseGate(false)} onActivated={(status) => { setLicenseStatus(status); setShowLicenseGate(false); }} />;
+  if (!currentUser) return <LoginPage onLogin={handleLogin} />;
+  if (isLoadingData) return <main className="min-h-screen bg-slate-950 text-slate-200 grid place-items-center">Cargando datos desde SQLite local…</main>;
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
@@ -172,10 +235,14 @@ export default function App() {
       <main className="flex-1 pb-16">
         {activeTab === 'editor' && (
           <DocumentEditor
+            key={editorInstanceKey}
             clients={clients}
             lawyer={lawyer}
             criteria={criteria}
             initialFormData={editorFormData}
+            savedDocuments={savedDocuments}
+            onSaveDocument={handleSaveDocument}
+            canSave={currentUser.role !== 'consulta'}
           />
         )}
 
@@ -183,6 +250,9 @@ export default function App() {
           <FeeCalculatorView
             criteria={criteria}
             onUpdateBcvRate={handleUpdateBcvRate}
+            onRefreshBcvRate={handleRefreshBcvRate}
+            bcvStatus={bcvStatus}
+            canEditBcvRate={['admin', 'abogado'].includes(currentUser.role)}
           />
         )}
 
@@ -192,18 +262,31 @@ export default function App() {
             onAddClient={handleAddClient}
             onUpdateClient={handleUpdateClient}
             onDeleteClient={handleDeleteClient}
+            canEdit={currentUser.role !== 'consulta'}
+            canDelete={['admin', 'abogado'].includes(currentUser.role)}
             onSelectForDocument={handleSelectClientForDocument}
           />
         )}
 
-        {activeTab === 'settings' && (
+        {activeTab === 'settings' && currentUser.role === 'admin' && (
+          <>
           <SarenSettingsView
             criteria={criteria}
-            onUpdateCriteria={setCriteria}
+            onUpdateCriteria={handleUpdateCriteria}
             lawyer={lawyer}
-            onUpdateLawyer={setLawyer}
+            onUpdateLawyer={handleUpdateLawyer}
           />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+            <BackupManager />
+            <div className="mt-4"><LegacyImportManager onImported={handleRefreshLocalData} /></div>
+          </div>
+          </>
         )}
+
+        {activeTab === 'users' && currentUser.role === 'admin' && <UserAdministration />}
+        {activeTab === 'audit' && currentUser.role === 'admin' && <AuditLogView />}
+        {activeTab === 'profile' && currentUser.role === 'abogado' && <LawyerProfileSettings lawyer={lawyer} onSave={handleUpdateLawyer} />}
+        {activeTab === 'attachments' && <AttachmentManager documents={savedDocuments.map((doc) => ({ id: doc.id, title: doc.title }))} clients={clients.map((client) => ({ id: client.id, title: client.fullName }))} role={currentUser.role} />}
       </main>
 
       {/* Professional Footer with Developer Attribution */}
@@ -211,7 +294,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-bold text-slate-800 dark:text-slate-200">
-              MVP Notaría VE
+              Notaría VE
             </span>
             <span>·</span>
             <span>Gestor de Documentos y Aranceles Notariales SAREN</span>

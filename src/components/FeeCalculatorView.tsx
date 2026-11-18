@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Calculator, Printer, FileDown, Building, Info, Landmark } from 'lucide-react';
 import { calculateVenezuelanFees, FeeInputParams } from '../utils/feeCalculator';
 import { VENEZUELAN_STATES_TAX_DATA } from '../data/venezuelaTaxData';
@@ -8,10 +8,13 @@ import { SarenCriteriaConfig } from '../types/legal';
 
 interface FeeCalculatorViewProps {
   criteria: SarenCriteriaConfig;
-  onUpdateBcvRate: (rate: number) => void;
+  onUpdateBcvRate: (rate: number) => Promise<void>;
+  onRefreshBcvRate: () => Promise<void>;
+  bcvStatus: string;
+  canEditBcvRate: boolean;
 }
 
-export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, onUpdateBcvRate }) => {
+export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, onUpdateBcvRate, onRefreshBcvRate, bcvStatus, canEditBcvRate }) => {
   const [stateId, setStateId] = useState<string>('distrito-capital');
   const [municipalityId, setMunicipalityId] = useState<string>('mun-libertador-dc');
   const [operationType, setOperationType] = useState<FeeInputParams['operationType']>('venta-inmueble');
@@ -20,12 +23,22 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const [pageCount, setPageCount] = useState<number>(4);
   const [grantorCount, setGrantorCount] = useState<number>(2);
   const [expressExpedited, setExpressExpedited] = useState<boolean>(false);
-  const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 68.5);
-
-  const handleRateChange = (newRate: number) => {
-    setBcvRate(newRate);
-    onUpdateBcvRate(newRate);
+  const [vehicleLawyerFeeMode, setVehicleLawyerFeeMode] = useState<'percentage' | 'minimum' | 'custom'>('percentage');
+  const [customVehicleLawyerFeeUsd, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
+  const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 0);
+  const [isSavingRate, setIsSavingRate] = useState(false);
+  const [isRefreshingRate, setIsRefreshingRate] = useState(false);
+  useEffect(() => setBcvRate(criteria.bcvRate || 0), [criteria.bcvRate]);
+  const handleRateChange = (newRate: number) => setBcvRate(newRate);
+  const handleSaveManualRate = async () => {
+    setIsSavingRate(true);
+    try { await onUpdateBcvRate(bcvRate); } catch (error) { console.error(error); } finally { setIsSavingRate(false); }
   };
+  const handleRefreshRate = async () => {
+    setIsRefreshingRate(true);
+    try { await onRefreshBcvRate(); } catch (error) { console.error(error); } finally { setIsRefreshingRate(false); }
+  };
+  const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
 
   const calculation = calculateVenezuelanFees({
     stateId,
@@ -33,10 +46,12 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     operationType,
     amountCurrency: currency,
     amountValue: amountValue || 0,
-    bcvRate: bcvRate || 1,
+    bcvRate: hasValidBcvRate ? bcvRate : 1,
     pageCount: pageCount || 1,
     grantorCount: grantorCount || 1,
     expressExpedited,
+    vehicleLawyerFeeMode,
+    customVehicleLawyerFeeUsd,
   });
 
   const selectedStateRule =
@@ -47,6 +62,7 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     VENEZUELAN_MUNICIPALITIES_DATA[0];
 
   const handleExportStatementDocx = async () => {
+    if (!hasValidBcvRate) return;
     const textStatement = `HOJA DE LIQUIDACIÓN Y ESTIMACIÓN DE GASTOS NOTARIALES, REGISTRALES Y MUNICIPALES
 ESTADO: ${calculation.state.toUpperCase()}
 MUNICIPIO: ${calculation.municipalityName.toUpperCase()}
@@ -75,13 +91,13 @@ RESUMEN DE LIQUIDACIÓN:
 • Subtotal Aranceles SAREN: Bs. ${calculation.subtotalSarenBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalSarenUsd.toFixed(2)})
 • Subtotal Timbres Fiscales Estadales (${selectedStateRule.taxAuthorityName}): Bs. ${calculation.subtotalTimbresBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalTimbresUsd.toFixed(2)})
 • Subtotal Tasas Municipales (${selectedMunicipality.name} - LOCAPTEM): Bs. ${calculation.subtotalMunicipalBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalMunicipalUsd.toFixed(2)})
-• Honorarios Mínimos Sugeridos de Abogado (Reglamento Federación): Bs. ${calculation.subtotalHonorariosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalHonorariosUsd.toFixed(2)})
+• Honorarios del Abogado (modalidad seleccionada): Bs. ${calculation.subtotalHonorariosBs.toLocaleString('es-VE', { minimumFractionDigits: 2 })} (US$ ${calculation.subtotalHonorariosUsd.toFixed(2)})
 
-TOTAL GENERAL ESTIMADO A PAGAR:
+TOTAL GENERAL ESTIMADO (NO OFICIAL):
 Bs. ${calculation.totalBs.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} BOLÍVARES
 (Equivalente a US$ ${calculation.totalUsd.toFixed(2)} Dólares de los Estados Unidos de América a Tasa Oficial BCV)
 
-Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Orgánica de Armonización Tributaria (LOCAPTEM - G.O. 6.755 Ext.) y Ordenanzas Municipales.`;
+Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos en este modelo aún requieren contraste documental con la Gaceta Oficial, las normas aplicables y la ordenanza vigente de la jurisdicción.`;
 
     await exportToWordDocx(
       'Liquidación de Gastos Notariales y Municipales',
@@ -92,6 +108,7 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
   };
 
   const handlePrint = () => {
+    if (!hasValidBcvRate) return;
     window.print();
   };
 
@@ -102,16 +119,17 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <Calculator className="w-6 h-6 text-amber-500" />
-            Calculadora de Aranceles Notariales, Timbres Fiscales y Tasas Municipales
+            Estimador Orientativo de Gastos Notariales, Registrales y Municipales
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Adaptada a la Ley de Registro y Notariado (G.O. 6.668), la Ley de Armonización Tributaria (LOCAPTEM) y las ordenanzas de cada municipio.
+            Estimaciones internas no oficiales. Verifique cada tarifa, porcentaje y vigencia directamente con SAREN, la autoridad estadal y la alcaldía competente.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportStatementDocx}
+            disabled={!hasValidBcvRate}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors"
           >
             <FileDown className="w-4 h-4" />
@@ -119,6 +137,7 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
           </button>
           <button
             onClick={handlePrint}
+            disabled={!hasValidBcvRate}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
           >
             <Printer className="w-4 h-4" />
@@ -232,6 +251,44 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
             </select>
           </div>
 
+          {operationType === 'venta-vehiculo' && (
+            <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50/70 dark:bg-amber-950/20 p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-100 mb-1">
+                  Modalidad de honorarios del abogado:
+                </label>
+                <select
+                  value={vehicleLawyerFeeMode}
+                  onChange={(e) => setVehicleLawyerFeeMode(e.target.value as 'percentage' | 'minimum' | 'custom')}
+                  className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
+                >
+                  <option value="percentage">3 % del valor del vehículo</option>
+                  <option value="minimum">Mínimo reglamentario ($60)</option>
+                  <option value="custom">Monto libre</option>
+                </select>
+              </div>
+              {vehicleLawyerFeeMode === 'custom' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Honorario acordado (USD):
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={customVehicleLawyerFeeUsd}
+                    onChange={(e) => setCustomVehicleLawyerFeeUsd(Math.max(0, Number(e.target.value)))}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-slate-100"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">Se convertirá automáticamente a bolívares con la tasa BCV indicada.</p>
+                </div>
+              )}
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                La modalidad elegida se refleja en el desglose, el total y el presupuesto imprimible o descargable.
+              </p>
+            </div>
+          )}
+
           {/* Amount declared */}
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -281,31 +338,56 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
             {/* Equivalent calculation */}
             <div className="mt-1 text-[11px] text-slate-500 font-mono">
               Equivalente:{' '}
-              {currency === 'USD' ? (
+              {!hasValidBcvRate ? (
+                <span>Ingrese una tasa BCV válida para convertir.</span>
+              ) : currency === 'USD' ? (
                 <span>
                   Bs. {(amountValue * bcvRate).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
                 </span>
               ) : (
-                <span>US$ {(amountValue / (bcvRate || 1)).toFixed(2)}</span>
+                <span>US$ {(amountValue / bcvRate).toFixed(2)}</span>
               )}
             </div>
           </div>
 
           {/* BCV Rate */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Tasa Oficial Banco Central de Venezuela (BCV):
-            </label>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Tasa BCV vigente (editable):
+              </label>
+              <span className="text-[10px] font-semibold rounded bg-slate-100 dark:bg-slate-800 px-2 py-1 text-slate-600 dark:text-slate-300">
+                {criteria.bcvRateSourceType === 'manual' ? 'Edición manual' : 'Consulta automática'}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <input
                 type="number"
-                step="0.01"
+                min="0.000001"
+                step="0.0001"
                 value={bcvRate}
                 onChange={(e) => handleRateChange(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-900 dark:text-slate-100"
+                disabled={!canEditBcvRate}
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-sm font-mono font-bold text-slate-900 dark:text-slate-100"
               />
               <span className="text-xs text-slate-500 font-mono shrink-0">Bs. / USD</span>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={handleSaveManualRate} disabled={!canEditBcvRate || isSavingRate || !Number.isFinite(bcvRate) || bcvRate <= 0}
+                className="px-3 py-2 rounded-md bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold disabled:opacity-50">
+                {isSavingRate ? 'Guardando…' : 'Guardar tasa manual'}
+              </button>
+              <button type="button" onClick={handleRefreshRate} disabled={isRefreshingRate}
+                className="px-3 py-2 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-semibold disabled:opacity-50">
+                {isRefreshingRate ? 'Consultando…' : 'Actualizar desde BCV'}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {criteria.bcvRateSource || 'Aún no hay una fuente registrada.'}
+              {criteria.bcvRateDate ? ` · Vigencia: ${criteria.bcvRateDate}` : ''}
+              {criteria.bcvRateUpdatedAt ? ` · Consultada: ${new Date(criteria.bcvRateUpdatedAt).toLocaleString('es-VE')}` : ''}
+            </p>
+            {bcvStatus && <p className="text-[11px] text-slate-600 dark:text-slate-300">{bcvStatus}</p>}
           </div>
 
           {/* Pages and Grantors count */}
@@ -362,6 +444,11 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
 
         {/* Right Breakdown (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
+          {!hasValidBcvRate ? (
+            <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-800 dark:text-amber-200">
+              No hay una tasa BCV válida guardada. Introduzca manualmente la tasa vigente y verifique su fuente y fecha antes de calcular. No se utilizará una tasa ficticia.
+            </div>
+          ) : <>
           {/* Main Total Highlight Card */}
           <div className="bg-slate-900 text-white rounded-xl p-6 border border-slate-800 shadow-sm relative overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -480,9 +567,10 @@ Fundamento: Ley de Registro Público y del Notariado (G.O. 6.668 Ext.), Ley Org�
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-start gap-3 text-xs text-slate-600 dark:text-slate-400">
             <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong>Base Normativa:</strong> Los cálculos de aranceles se ajustan a la reforma de la Ley de Registro Público y del Notariado (Gaceta Oficial N° 6.668 Extraordinario), la Ley Orgánica de Coordinación y Armonización de las Potestades Tributarias de los Estados y Municipios (LOCAPTEM - Gaceta Oficial N° 6.755 Extraordinario) y las ordenanzas impositivas de {selectedMunicipality.name}.
+              <strong>Advertencia:</strong> Este módulo genera una estimación interna no oficial. Sus porcentajes, mínimos y tasas no están certificados como vigentes. Confirme cada concepto, su base legal y su fecha de vigencia con SAREN, la autoridad tributaria estadal y la alcaldía de {selectedMunicipality.name} antes de cobrar o emitir una liquidación.
             </p>
           </div>
+          </>}
         </div>
       </div>
     </div>

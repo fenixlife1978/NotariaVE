@@ -32,6 +32,9 @@ import {
   ArrowRight,
   ShieldAlert,
   XCircle,
+  Save,
+  Search,
+  FolderOpen,
 } from 'lucide-react';
 import {
   ClientParty,
@@ -67,11 +70,23 @@ import { AiClauseModal } from './AiClauseModal';
 import { SarenComplianceModal } from './SarenComplianceModal';
 import { MissingLegalRequirementsModal } from './MissingLegalRequirementsModal';
 
+type SavedDocument = {
+  id: string;
+  title: string;
+  templateId: string;
+  updatedAt: string;
+  revision: number;
+  payload: any;
+};
+
 interface DocumentEditorProps {
   clients: ClientParty[];
   lawyer: LawyerProfile;
   criteria: SarenCriteriaConfig;
   initialFormData?: DocumentFormData | null;
+  savedDocuments: SavedDocument[];
+  onSaveDocument: (input: { id?: string; title: string; templateId: string; payload: Record<string, unknown> }) => Promise<SavedDocument>;
+  canSave?: boolean;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -79,6 +94,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   lawyer,
   criteria,
   initialFormData,
+  savedDocuments,
+  onSaveDocument,
+  canSave = true,
 }) => {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(
     initialFormData?.templateId || 'venta-vehiculo'
@@ -90,136 +108,62 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   );
 
   // Form State
-  const [formData, setFormData] = useState<DocumentFormData>(() => {
-    if (initialFormData) return initialFormData;
-
-    const defaultGrantor = clients[0] || {};
-    const defaultGrantee = clients[1] || {};
-
-    return {
-      templateId: 'venta-vehiculo',
-      title: 'VENTA DE VEHÍCULO AUTOMOTOR',
-      date: new Date().toLocaleDateString('es-VE'),
-      city: 'Caracas',
-      state: criteria.state || 'Distrito Capital',
-      municipality: criteria.municipality || 'Libertador',
-      grantorId: clients[0]?.id || '',
-      granteeId: clients[1]?.id || '',
-      grantor: defaultGrantor,
-      grantee: defaultGrantee,
-      vehicle: {
-        brand: 'TOYOTA',
-        model: 'COROLLA XEI',
-        year: '2018',
-        color: 'PLATA',
-        licensePlate: 'AC123DE',
-        serialBody: '8A3BB46E1J5019283',
-        serialEngine: '2ZR-FE982144',
-        vehicleClass: 'AUTOMÓVIL',
-        vehicleType: 'SEDÁN',
-        vehicleUse: 'PARTICULAR',
-        inttCertificateNumber: 'INTT-987654321',
-        salePriceBs: 308250,
-        salePriceUsd: 4500,
-        paymentMethod: 'transferencia bancaria nacional',
-        technicalInspectionNumber: 'PNB-TT-2026-9041',
-        technicalInspectionDate: '01/11/2026',
-        municipalVehicleTaxPaid: true,
-        spousalConsentArticle168: true,
-      },
-      realEstate: {
-        propertyType: 'Apartamento',
-        propertyAddress: 'Avenida Francisco de Miranda, Urbanización Los Palos Grandes, Edificio Residencias Parque Cristal, Piso 7, Apartamento 7-B',
-        municipality: 'Chacao',
-        state: 'Miranda',
-        cadastralCertificateNumber: '15-01-04-0028-007',
-        cadastralYear: '2026',
-        municipalSolvencyNumber: 'SOLV-DAT-2026-8941',
-        municipalSolvencyYear: '2026',
-        registryTitleData: 'Registro Inmobiliario del Municipio Chacao del Estado Miranda en fecha 12 de julio de 2015, bajo el N° 45, Tomo 12, Protocolo Primero',
-        northBoundary: 'Colinda con pasillo de circulación común y ductos de servicios',
-        southBoundary: 'Colinda con fachada posterior con vista al patio interior',
-        eastBoundary: 'Colinda con el Apartamento 7-A',
-        westBoundary: 'Colinda con el Apartamento 7-C',
-        totalAreaM2: 124.50,
-        condominiumPercentage: 2.15,
-        salePriceBs: 4795000,
-        salePriceUsd: 70000,
-        paymentMethod: 'transferencia bancaria a la cuenta designada',
-        encumbranceCertificate: true,
-        spousalConsentArticle168: true,
-      },
-      company: {
-        companyName: 'INVERSIONES & SUMINISTROS 2026, C.A.',
-        fiscalDomicile: 'la ciudad de Caracas, Municipio Chacao, Estado Miranda',
-        commercialPurpose: 'La compra, venta, importación, exportación, distribución y comercialización al mayor y detal de suministros tecnológicos y prestación de servicios conexos.',
-        totalCapitalBs: 150000,
-        totalShares: 1500,
-        shareNominalValueBs: 100,
-        presidentName: clients[0]?.fullName || 'CARLOS EDUARDO MENDOZA SILVA',
-        presidentCedula: clients[0]?.idCardNumber || '14.892.341',
-        vicePresidentName: clients[1]?.fullName || 'MARÍA ALEJANDRA HERNÁNDEZ',
-        vicePresidentCedula: clients[1]?.idCardNumber || '18.423.905',
-        commissionerName: 'LIC. ROBERTO GÓMEZ RIVAS',
-        commissionerCpcNumber: '42.190',
-        fiscalYearEnd: '31 de diciembre',
-        reserveFundPercentage: 5,
-        reserveFundLimitPercentage: 10,
-        openingInventoryCertified: true,
-        commissionerAcceptanceLetter: true,
-      },
-      personalFirm: {
-        tradeName: 'DISTRIBUIDORA DE REPUESTOS MENDOZA F.P.',
-        ownerName: clients[0]?.fullName || 'CARLOS EDUARDO MENDOZA SILVA',
-        ownerCedula: clients[0]?.idCardNumber || '14.892.341',
-        ownerRif: clients[0]?.rifNumber || '14892341-2',
-        initialCapitalBs: 85000,
-        commercialActivity: 'Comercialización al mayor y detal de repuestos automotrices y lubricantes.',
-        domicile: 'Caracas, Municipio Libertador, Distrito Capital',
-      },
-      power: {
-        attorneyName: clients[1]?.fullName || 'MARÍA ALEJANDRA HERNÁNDEZ',
-        attorneyCedula: clients[1]?.idCardNumber || '18.423.905',
-        attorneyRif: clients[1]?.rifNumber || '18423905-8',
-        attorneyAddress: 'Colinas de Bello Monte, Baruta, Estado Miranda',
-        powerScope: 'Para que en mi nombre y representación realice todos los trámites relativos a la compraventa de vehículos y representación legal ante el SAREN, SENIAT e instituciones bancarias.',
-        allowSubdelegation: false,
-      },
-      lease: {
-        propertyAddress: 'Av. Principal de Las Mercedes, Edificio Centro Empresarial, Piso 4, Oficina 402, Municipio Baruta, Estado Miranda',
-        propertyCadastralNumber: '15-02-04-0012-004',
-        propertyRegistrationTitle: 'Inscrito en el Registro Inmobiliario de Baruta bajo el N° 12, Tomo 3-A',
-        intendedUse: 'Comercial',
-        monthlyRentUsd: 800,
-        monthlyRentBs: 54800,
-        depositMonths: 3,
-        contractDurationMonths: 12,
-        penaltyLateInterest: 2,
-      },
-      minorTravel: {
-        minorFullName: 'SANTIAGO EDUARDO MENDOZA HERNÁNDEZ',
-        minorCedula: '32.145.678',
-        minorBirthDate: '15 de mayo de 2014',
-        minorPassportNumber: '124987654',
-        fatherFullName: 'CARLOS EDUARDO MENDOZA SILVA',
-        fatherCedula: '14.892.341',
-        motherFullName: 'MARÍA ALEJANDRA HERNÁNDEZ',
-        motherCedula: '18.423.905',
-        travelCompanionName: 'MARÍA ALEJANDRA HERNÁNDEZ',
-        travelCompanionCedula: '18.423.905',
-        travelDestination: 'Madrid, Reino de España',
-        isInternational: true,
-        departureDate: '15/12/2026',
-        returnDate: '15/01/2027',
-        airlineOrTransport: 'Línea Aérea Iberia / Air Europa en vuelo comercial directo',
-      },
-      includeOriginOfFunds: true,
-      includeLawyerVisa: true,
-      includeArbitrationClause: false,
-      strictProtocolFormat: true, // Protocol line closure and legal date in words
-      customClauses: [],
-    };
-  });
+  const [formData, setFormData] = useState<DocumentFormData>(() => initialFormData || ({
+    templateId: 'venta-vehiculo',
+    title: 'VENTA DE VEHÍCULO AUTOMOTOR',
+    date: new Date().toLocaleDateString('es-VE'),
+    city: '',
+    state: criteria.state || 'Distrito Capital',
+    municipality: criteria.municipality || 'Libertador',
+    grantor: {},
+    grantee: {},
+    vehicle: {
+      brand: '', model: '', year: '', color: '', licensePlate: '',
+      serialBody: '', serialEngine: '', vehicleClass: '', vehicleType: '',
+      vehicleUse: '', inttCertificateNumber: '', salePriceBs: 0, salePriceUsd: 0,
+      paymentMethod: '', municipalVehicleTaxPaid: false, spousalConsentArticle168: false,
+    },
+    realEstate: {
+      propertyType: 'Apartamento', propertyAddress: '', municipality: '', state: '',
+      cadastralCertificateNumber: '', cadastralYear: '', municipalSolvencyNumber: '',
+      municipalSolvencyYear: '', registryTitleData: '', northBoundary: '',
+      southBoundary: '', eastBoundary: '', westBoundary: '', totalAreaM2: 0,
+      salePriceBs: 0, salePriceUsd: 0, paymentMethod: '',
+      encumbranceCertificate: false, spousalConsentArticle168: false,
+    },
+    company: {
+      companyName: '', fiscalDomicile: '', commercialPurpose: '', totalCapitalBs: 0,
+      totalShares: 0, shareNominalValueBs: 0, presidentName: '', presidentCedula: '',
+      vicePresidentName: '', vicePresidentCedula: '', commissionerName: '',
+      commissionerCpcNumber: '', fiscalYearEnd: '', reserveFundPercentage: 5,
+      reserveFundLimitPercentage: 10, openingInventoryCertified: false,
+      commissionerAcceptanceLetter: false,
+    },
+    personalFirm: {
+      tradeName: '', ownerName: '', ownerCedula: '', ownerRif: '',
+      initialCapitalBs: 0, commercialActivity: '', domicile: '',
+    },
+    power: {
+      attorneyName: '', attorneyCedula: '', attorneyRif: '', attorneyAddress: '',
+      powerScope: '', allowSubdelegation: false,
+    },
+    lease: {
+      propertyAddress: '', propertyCadastralNumber: '', propertyRegistrationTitle: '',
+      intendedUse: 'Comercial', monthlyRentUsd: 0, monthlyRentBs: 0,
+      depositMonths: 0, contractDurationMonths: 0, penaltyLateInterest: 0,
+    },
+    minorTravel: {
+      minorFullName: '', minorBirthDate: '', minorPassportNumber: '',
+      fatherFullName: '', fatherCedula: '', motherFullName: '', motherCedula: '',
+      travelCompanionName: '', travelCompanionCedula: '', travelDestination: '',
+      isInternational: false, departureDate: '', returnDate: '', airlineOrTransport: '',
+    },
+    includeOriginOfFunds: true,
+    includeLawyerVisa: true,
+    includeArbitrationClause: false,
+    strictProtocolFormat: true,
+    customClauses: [],
+  } as DocumentFormData));
 
   // Editor mode: preview vs raw text edit
   const [isRawEditing, setIsRawEditing] = useState(false);
@@ -230,6 +174,19 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [showMissingRequirementsModal, setShowMissingRequirementsModal] = useState(false);
   const [isValidatorExpanded, setIsValidatorExpanded] = useState(false);
   const [isExportingWord, setIsExportingWord] = useState(false);
+  const [currentDocumentId, setCurrentDocumentId] = useState<string | undefined>();
+  const [documentSearch, setDocumentSearch] = useState('');
+  const [isSavingDocument, setIsSavingDocument] = useState(false);
+  const [documentSaveMessage, setDocumentSaveMessage] = useState('');
+
+
+  useEffect(() => {
+    if (!initialFormData) return;
+    setFormData(initialFormData);
+    setSelectedTemplateId(initialFormData.templateId);
+    setCurrentDocumentId(undefined);
+    setIsRawEditing(false);
+  }, [initialFormData]);
 
   // Generate draft text whenever form data or criteria changes
   const computedDraftText = useMemo(() => {
@@ -420,6 +377,50 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     }
   };
 
+  const handleSaveDocument = async () => {
+    setIsSavingDocument(true);
+    setDocumentSaveMessage('');
+    try {
+      const saved = await onSaveDocument({
+        id: currentDocumentId,
+        title: formData.title,
+        templateId: formData.templateId,
+        payload: {
+          formData,
+          customDraftText: isRawEditing ? customDraftText : computedDraftText,
+          isRawEditing,
+        },
+      });
+      setCurrentDocumentId(saved.id);
+      setDocumentSaveMessage('Guardado en SQLite local · revisión ' + saved.revision);
+    } catch (error) {
+      setDocumentSaveMessage(error instanceof Error ? error.message : 'No se pudo guardar el documento.');
+    } finally {
+      setIsSavingDocument(false);
+    }
+  };
+
+  const handleOpenSavedDocument = (saved: SavedDocument) => {
+    if (!saved.payload?.formData) {
+      setDocumentSaveMessage('El expediente guardado no contiene un formulario válido.');
+      return;
+    }
+    setFormData(saved.payload.formData);
+    setSelectedTemplateId(saved.payload.formData.templateId);
+    setCurrentDocumentId(saved.id);
+    setIsRawEditing(Boolean(saved.payload.isRawEditing));
+    setCustomDraftText(saved.payload.customDraftText || '');
+    setDocumentSaveMessage('Expediente abierto · revisión ' + saved.revision);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const filteredDocuments = savedDocuments.filter((document) => {
+    const query = documentSearch.trim().toLocaleLowerCase('es');
+    if (!query) return true;
+    const parties = [document.payload?.formData?.grantor?.fullName, document.payload?.formData?.grantee?.fullName].filter(Boolean).join(' ');
+    return [document.title, document.templateId, parties].join(' ').toLocaleLowerCase('es').includes(query);
+  });
+
   // Copy draft
   const handleCopy = () => {
     const textToCopy = isRawEditing ? customDraftText : computedDraftText;
@@ -501,6 +502,33 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
         onSelectGrantee={handleSelectGranteeClient}
         onScrollToSection={handleScrollToSection}
       />
+
+      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><FolderOpen className="w-4 h-4 text-amber-500" /> Expedientes guardados</h2>
+            <p className="text-[11px] text-slate-500">Almacenados exclusivamente en la base SQLite de este equipo.</p>
+          </div>
+          <div className="relative w-full sm:max-w-xs">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input value={documentSearch} onChange={(event) => setDocumentSearch(event.target.value)} placeholder="Buscar título o compareciente..." className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950" />
+          </div>
+        </div>
+        {documentSaveMessage && <p role="status" className="text-xs text-emerald-700 dark:text-emerald-300">{documentSaveMessage}</p>}
+        {filteredDocuments.length === 0 ? (
+          <p className="text-xs text-slate-500 py-2">{savedDocuments.length === 0 ? 'Todavía no hay expedientes guardados.' : 'No hay expedientes que coincidan con la búsqueda.'}</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 max-h-56 overflow-y-auto">
+            {filteredDocuments.map((document) => (
+              <button key={document.id} type="button" onClick={() => handleOpenSavedDocument(document)} className={`text-left rounded-lg border p-3 transition-colors ${currentDocumentId === document.id ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : 'border-slate-200 dark:border-slate-700 hover:border-amber-400'}`}>
+                <span className="block text-xs font-semibold text-slate-900 dark:text-white truncate">{document.title}</span>
+                <span className="block text-[10px] text-slate-500 mt-1">{document.templateId} · revisión {document.revision}</span>
+                <span className="block text-[10px] text-slate-400 mt-1">{new Date(document.updatedAt).toLocaleString('es-VE')}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* GENERADOR DINÁMICO DE DOCUMENTOS SAREN */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-xs space-y-4">
@@ -1076,7 +1104,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                       grantor: { ...prev.grantor, fullName: e.target.value },
                     }))
                   }
-                  placeholder="CARLOS EDUARDO MENDOZA SILVA"
+                  placeholder="Nombre completo del otorgante"
                   className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-medium text-slate-900 dark:text-slate-100"
                 />
               </div>
@@ -1109,7 +1137,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           grantor: { ...prev.grantor, idCardNumber: e.target.value },
                         }))
                       }
-                      placeholder="14.892.341"
+                      placeholder="Número de cédula"
                       className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                     />
                   </div>
@@ -1144,7 +1172,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           grantor: { ...prev.grantor, rifNumber: e.target.value },
                         }))
                       }
-                      placeholder="14892341-2"
+                      placeholder="Número de RIF"
                       className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                     />
                   </div>
@@ -1283,7 +1311,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         grantee: { ...prev.grantee, fullName: e.target.value },
                       }))
                     }
-                    placeholder="MARÍA ALEJANDRA HERNÁNDEZ"
+                    placeholder="Nombre completo de la otra parte"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-medium text-slate-900 dark:text-slate-100"
                   />
                 </div>
@@ -1316,7 +1344,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                             grantee: { ...prev.grantee, idCardNumber: e.target.value },
                           }))
                         }
-                        placeholder="18.423.905"
+                        placeholder="Número de cédula"
                         className="flex-1 px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-slate-100"
                       />
                     </div>
@@ -1667,7 +1695,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         vehicle: { ...prev.vehicle, inttCertificateNumber: e.target.value },
                       }))
                     }
-                    placeholder="INTT-987654321"
+                    placeholder="Número de certificado INTT"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
                   />
                 </div>
@@ -1685,7 +1713,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         vehicle: { ...prev.vehicle, serialBody: e.target.value },
                       }))
                     }
-                    placeholder="8A3BB46E1J5019283"
+                    placeholder="Serial de carrocería"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
                   />
                 </div>
@@ -1847,7 +1875,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                         power: { ...prev.power, attorneyName: e.target.value },
                       }))
                     }
-                    placeholder="MARÍA ALEJANDRA HERNÁNDEZ"
+                    placeholder="Nombre completo de la otra parte"
                     className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-bold"
                   />
                 </div>
@@ -1866,7 +1894,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                           power: { ...prev.power, attorneyCedula: e.target.value },
                         }))
                       }
-                      placeholder="V-18.423.905"
+                      placeholder="V-Número de cédula"
                       className="w-full px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg font-mono"
                     />
                   </div>
@@ -2116,6 +2144,9 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {canSave && <button type="button" onClick={handleSaveDocument} disabled={isSavingDocument} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-slate-950 text-xs font-bold">
+                <Save className="w-3.5 h-3.5" /> {isSavingDocument ? 'Guardando...' : currentDocumentId ? 'Guardar cambios' : 'Guardar expediente'}
+              </button>}
               {/* Statutory Legal Validation Seal Badge */}
               {minLegalValidation.canExport ? (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">

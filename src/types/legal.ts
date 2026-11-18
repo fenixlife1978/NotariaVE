@@ -205,7 +205,11 @@ export interface SarenCriteriaConfig {
   lineSpacing: number; // default 1.5
   enableProtocolLines: boolean; // 1-30 protocol lines
   strictSarenFormatting: boolean;
-  bcvRate: number; // Official USD to VES rate
+  bcvRate: number; // USD to VES rate currently used by calculations
+  bcvRateSource?: string;
+  bcvRateSourceType?: 'automatic' | 'manual';
+  bcvRateDate?: string;
+  bcvRateUpdatedAt?: string;
 }
 
 export interface FeeCalculationItem {

@@ -37,7 +37,7 @@ export const SarenSettingsView: React.FC<SarenSettingsProps> = ({
           Criterios Notariales SAREN y Perfil Profesional
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Ajusta los márgenes legales de encuadernación, el despacho notarial/mercantil por defecto, la tasa BCV oficial y tus datos de abogado visador (INPREABOGADO).
+          Ajusta los márgenes legales de encuadernación, el despacho notarial/mercantil por defecto, la tasa BCV introducida manualmente y tus datos de abogado visador (INPREABOGADO).
         </p>
       </div>
 
@@ -320,7 +320,7 @@ export const SarenSettingsView: React.FC<SarenSettingsProps> = ({
 
             <div>
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Tasa de Cambio Oficial BCV (Bs. / USD):
+                Tasa BCV manual (Bs. / USD; verifique fuente y fecha):
               </label>
               <div className="relative">
                 <input

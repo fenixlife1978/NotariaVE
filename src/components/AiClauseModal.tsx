@@ -34,33 +34,7 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch('/api/gemini/clause-assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          documentType,
-          currentClause,
-          notaryState,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success && data.clause) {
-        setGeneratedClause(data.clause);
-      } else {
-        setError(data.error || 'No se pudo generar la cláusula.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Error de comunicación con el asistente legal.');
-    } finally {
-      setIsLoading(false);
-    }
+    setError('La IA externa está deshabilitada en la edición de escritorio. El texto del documento no se envía a servicios externos.');
   };
 
   const handleInsert = () => {
@@ -84,7 +58,7 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({
                 Asistente de Redacción Jurídica
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Ajustado al marco normativo venezolano y criterios de Notarías/Registros SAREN
+                La integración externa está desactivada; no se transmiten documentos ni datos personales.
               </p>
             </div>
           </div>
@@ -150,7 +124,7 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({
           <div className="flex justify-end">
             <button
               onClick={handleGenerate}
-              disabled={isLoading || !prompt.trim()}
+              disabled={true}
               className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold rounded-lg text-xs transition-colors disabled:opacity-50"
             >
               {isLoading ? (
@@ -161,7 +135,7 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  <span>Redactar Cláusula</span>
+                  <span>IA externa deshabilitada</span>
                 </>
               )}
             </button>

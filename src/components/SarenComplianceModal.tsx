@@ -55,34 +55,7 @@ export const SarenComplianceModal: React.FC<SarenComplianceModalProps> = ({
     riskColor = 'text-amber-500 bg-amber-500/10 border-amber-500/20';
   }
 
-  const runDeepAuditWithAi = async () => {
-    setIsAiAuditing(true);
-    try {
-      const res = await fetch('/api/gemini/validate-document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentText: fullDraftText,
-          documentType: formData.title,
-          partyData: {
-            grantor: formData.grantor,
-            grantee: formData.grantee,
-            lawyer,
-          },
-          notarySettings: criteria,
-        }),
-      });
 
-      const data = await res.json();
-      if (data.success && data.analysis) {
-        setAiReport(data.analysis);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsAiAuditing(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
@@ -156,6 +129,10 @@ export const SarenComplianceModal: React.FC<SarenComplianceModalProps> = ({
                 </div>
               </div>
 
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-amber-800 dark:text-amber-200">
+                Esta es una revisión heurística local basada en reglas internas. No constituye dictamen oficial del SAREN, no certifica vigencia normativa y no garantiza aceptación del documento. Verifique siempre las fuentes y recaudos de la oficina competente.
+              </div>
+
               {/* Rules Checklist */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
@@ -206,13 +183,12 @@ export const SarenComplianceModal: React.FC<SarenComplianceModalProps> = ({
                       Auditoría Forense con Inteligencia Artificial (Criterios de Taquilla)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Examina la redacción contra las circulares más recientes del Registro Principal y Notarías.
+                      La auditoría externa está deshabilitada. Esta revisión local no envía el documento a ningún servicio.
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={runDeepAuditWithAi}
-                    disabled={isAiAuditing}
+                    disabled={true}
                     className="px-3 py-1.5 bg-slate-900 dark:bg-slate-700 text-white hover:bg-slate-800 text-xs font-semibold rounded-lg flex items-center gap-1.5 shrink-0 transition-colors disabled:opacity-50"
                   >
                     {isAiAuditing ? (
@@ -221,7 +197,7 @@ export const SarenComplianceModal: React.FC<SarenComplianceModalProps> = ({
                         <span>Auditando...</span>
                       </>
                     ) : (
-                      <span>Ejecutar Auditoría IA</span>
+                      <span>IA externa deshabilitada</span>
                     )}
                   </button>
                 </div>
