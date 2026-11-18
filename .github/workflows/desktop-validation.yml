@@ -48,9 +48,97 @@ jobs:
         run: npm run lint
       - name: Build Windows NSIS installer
         run: npm run desktop:build
+      - name: Verify embedded Windows application metadata
+        shell: pwsh
+        run: |
+          $app = Join-Path $PWD 'release\\win-unpacked\\Notaría VE.exe'
+          if (!(Test-Path -LiteralPath $app)) { throw "No se encontró el ejecutable principal: $app" }
+          $info = (Get-Item -LiteralPath $app).VersionInfo
+          $expected = @{
+            ProductName = 'Notaría VE'
+            CompanyName = 'Notaría VE'
+            FileDescription = 'Notaría VE'
+            LegalTrademarks = 'Notaría VE'
+          }
+          foreach ($field in $expected.Keys) {
+            $actual = $info.$field
+            if ($actual -ne $expected[$field]) { throw "Metadato $field incorrecto. Esperado '$($expected[$field])'; recibido '$actual'." }
+          }
+          if ($info.LegalCopyright -notlike '*Notaría VE*') { throw "Falta el copyright de Notaría VE." }
+          if ($info.ProductVersion -ne '1.0.2') { throw "Versión del ejecutable incorrecta: $($info.ProductVersion)" }
+          Write-Host "Metadatos verificados: $($info.ProductName), $($info.CompanyName), $($info.ProductVersion)."
+      - name: Generate installer SHA-256 checksum
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -Path 'release' -Filter '*.exe' -File)
+          if ($installers.Count -eq 0) { throw 'No se encontró ningún instalador EXE.' }
+          $lines = foreach ($file in $installers) {
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $lines | Set-Content -Path 'release/SHA256SUMS.txt' -Encoding ascii
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: NotariaVE-Windows-Installer
-          path: release/*.exe
+          path: |
+            release/*.exe
+            release/SHA256SUMS.txt
           if-no-files-found: error
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [validate, windows-desktop-package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout complete history and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine whether this push introduces a new app version
+        id: meta
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const { execFileSync } = require('node:child_process');
+          const version = require('./package.json').version;
+          const before = process.env.BEFORE_SHA || '';
+          let previous = '';
+          if (before && !/^0+$/.test(before)) {
+            try {
+              previous = JSON.parse(execFileSync('git', ['show', `${before}:package.json`], { encoding: 'utf8' })).version || '';
+            } catch {}
+          }
+          const tag = `v${version}`;
+          const tagExists = execFileSync('git', ['tag', '--list', tag], { encoding: 'utf8' }).trim() !== '';
+          const publish = version !== previous && !tagExists;
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${version}\\npublish=${publish}\\n`);
+          console.log(`version=${version}; previous=${previous || '(none)'}; tagExists=${tagExists}; publish=${publish}`);
+          NODE
+      - name: Download installer artifact from this workflow run
+        uses: actions/download-artifact@v4
+        with:
+          name: NotariaVE-Windows-Installer
+          path: release
+      - name: Verify installer SHA-256
+        run: |
+          cd release
+          sha256sum -c SHA256SUMS.txt
+      - name: Publish GitHub Release
+        if: steps.meta.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.meta.outputs.version }}
+          name: Notaría VE v${{ steps.meta.outputs.version }}
+          body_path: docs/releases/1.0.2.md
+          files: |
+            release/*.exe
+            release/SHA256SUMS.txt
+          draft: false
+          prerelease: false
+          make_latest: true
+          fail_on_unmatched_files: true
