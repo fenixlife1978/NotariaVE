@@ -212,7 +212,7 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
 
   const lawyerFeeBs = lawyerFeeUsd * bcvRate;
   items.push({
-    concept: operationType === 'venta-vehiculo' ? 'Honorarios del Abogado por Compraventa de Vehículo' : 'Honorarios Mínimos de Redacción y Visado (Colegio de Abogados)',
+    concept: 'Honorarios profesionales del abogado',
     basis: lawyerBasis,
     amountBs: lawyerFeeBs,
     amountUsd: lawyerFeeUsd,
