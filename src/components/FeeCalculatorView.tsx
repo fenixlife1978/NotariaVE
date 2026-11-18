@@ -261,7 +261,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
                 <select
                   value={vehicleLawyerFeeMode}
                   disabled={!canEditBcvRate}
-                  onChange={(e) => setVehicleLawyerFeeMode(e.target.value as 'percentage' | 'minimum' | 'custom')
+                  onChange={(e) => setVehicleLawyerFeeMode(e.target.value as 'percentage' | 'minimum' | 'custom')}
                   className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
                 >
                   <option value="percentage">3 % de la cuantía declarada</option>
