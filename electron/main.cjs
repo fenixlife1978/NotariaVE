@@ -794,7 +794,7 @@ function registerIpc() {
 
   handleIpc('settings:get', (_event, key) => {
     requireSession();
-    const allowed = new Set(['lawyer_profile', 'saren_criteria']);
+    const allowed = new Set(['lawyer_profile', 'saren_criteria', 'lawyer_fee_mode']);
     if (!allowed.has(String(key))) throw new Error('Parámetro no permitido.');
     const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get(key);
     return row ? JSON.parse(row.setting_value) : null;
@@ -803,7 +803,7 @@ function registerIpc() {
   handleIpc('settings:save', (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado');
     const key = String(input.key || '');
-    const allowed = new Set(['lawyer_profile', 'saren_criteria']);
+    const allowed = new Set(['lawyer_profile', 'saren_criteria', 'lawyer_fee_mode']);
     if (!allowed.has(key)) throw new Error('Parámetro no permitido.');
     if (key === 'saren_criteria' && actor.role !== 'admin') throw new Error('Solo el administrador puede modificar los criterios generales SAREN.');
     const value = JSON.stringify(input.value ?? null);
