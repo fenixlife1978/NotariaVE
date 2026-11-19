@@ -12,7 +12,9 @@ const { assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsA
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
 const { getBcvRateUrl, getCaracasDate, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
 const { generateGeminiClause } = require('./gemini-provider.cjs');
-const { validateAiClauseRequest } = require('./ai-request.cjs');
+const { validateAiClauseRequest, assertAiDraftRole } = require('./ai-request.cjs');
+const { saveEncryptedAiKey, clearEncryptedAiKey, getAiKeyStatus, getDecryptedAiKey } = require('./ai-key-storage.cjs');
+const { assertTrustedIpcSender } = require('./ipc-security.cjs');
 
 let mainWindow;
 let db;
@@ -72,23 +74,14 @@ function writeAudit(actorId, action, entityType, entityId, details = {}) {
 
 function handleIpc(channel, listener) {
   ipcMain.handle(channel, (event, ...args) => {
-    if (!mainWindow || event.sender !== mainWindow.webContents) {
-      throw new Error('Solicitud IPC rechazada: emisor no autorizado.');
-    }
-    const frameUrl = event.senderFrame?.url || '';
-    let trusted = false;
-    if (app.isPackaged) {
-      const expected = pathToFileURL(path.resolve(__dirname, '..', 'dist', 'index.html')).href;
-      trusted = frameUrl === expected;
-    } else {
-      try {
-        const parsed = new URL(frameUrl);
-        trusted = parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1' && parsed.port === '5173';
-      } catch {
-        trusted = false;
-      }
-    }
-    if (!trusted) throw new Error('Solicitud IPC rechazada: origen no autorizado.');
+    const expectedFileUrl = pathToFileURL(path.resolve(__dirname, '..', 'dist', 'index.html')).href;
+    assertTrustedIpcSender({
+      mainWindow,
+      sender: event.sender,
+      senderFrameUrl: event.senderFrame?.url || '',
+      isPackaged: app.isPackaged,
+      expectedFileUrl,
+    });
     return listener(event, ...args);
   });
 }
@@ -739,40 +732,33 @@ function registerIpc() {
 
   handleIpc('ai:get-status', () => {
     requireSession();
-    const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
-    return { configured: Boolean(row && row.setting_value) };
+    return { configured: getAiKeyStatus(db) };
   });
 
   handleIpc('ai:save-key', (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado');
-    const apiKey = String(input.apiKey || '').trim();
-    if (!apiKey || apiKey.length > 500) throw new Error('API key inválida.');
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local del sistema no está disponible; no se guardará la clave.');
-    const encrypted = safeStorage.encryptString(apiKey).toString('base64');
-    db.prepare(`
-      INSERT INTO app_settings(setting_key, setting_value, updated_at) VALUES (?, ?, ?)
-      ON CONFLICT(setting_key) DO UPDATE SET setting_value=excluded.setting_value, updated_at=excluded.updated_at
-    `).run('ai_gemini_key_encrypted', JSON.stringify(encrypted), now());
-    writeAudit(actor.id, 'ai_provider_key_saved', 'setting', 'gemini');
-    return { saved: true };
+    return saveEncryptedAiKey(db, safeStorage, input.apiKey, {
+      actorId: actor.id,
+      writeAudit,
+      timestamp: now(),
+    });
   });
 
   handleIpc('ai:clear-key', () => {
     const actor = requireRole('admin', 'abogado');
-    db.prepare('DELETE FROM app_settings WHERE setting_key = ?').run('ai_gemini_key_encrypted');
-    writeAudit(actor.id, 'ai_provider_key_removed', 'setting', 'gemini');
-    return { removed: true };
+    return clearEncryptedAiKey(db, {
+      actorId: actor.id,
+      writeAudit,
+      timestamp: now(),
+    });
   });
 
   handleIpc('ai:generate-clause', async (_event, input = {}) => {
-    const actor = requireRole('admin', 'abogado');
+    const actor = requireSession();
+    assertAiDraftRole(actor.role);
     const request = validateAiClauseRequest(input);
     const { prompt, prior } = request;
-    const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
-    if (!row) throw new Error('Configura primero tu API key gratuita de Gemini.');
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local no está disponible.');
-    const encrypted = JSON.parse(row.setting_value);
-    const apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
+    const apiKey = getDecryptedAiKey(db, safeStorage);
     const context = String(input.context || '').slice(0, 2000);
     const text = await generateGeminiClause({ apiKey, prompt, currentClause: prior, context });
     writeAudit(actor.id, 'ai_clause_generated', 'document_draft', 'unsaved', request.auditDetails);
