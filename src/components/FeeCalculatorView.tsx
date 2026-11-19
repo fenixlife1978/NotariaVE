@@ -42,7 +42,7 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     try { await onRefreshBcvRate(); } catch (error) { console.error(error); } finally { setIsRefreshingRate(false); }
   };
   const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
-  const hasValidCalculationInputs = hasValidBcvRate && Number.isFinite(amountValue) && amountValue >= 0 &&
+  const hasValidCalculationInputs = feeSettingsLoaded && hasValidBcvRate && Number.isFinite(amountValue) && amountValue >= 0 &&
     Number.isInteger(pageCount) && pageCount > 0 && Number.isInteger(grantorCount) && grantorCount > 0 &&
     (vehicleLawyerFeeMode !== 'custom' || (Number.isFinite(customVehicleLawyerFeeUsd) && customVehicleLawyerFeeUsd >= 0));
 
@@ -447,7 +447,9 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
 
         {/* Right Breakdown (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {!hasValidCalculationInputs ? (
+          {!feeSettingsLoaded ? (
+            <div role="status" className="rounded-xl border border-slate-300 bg-slate-50 dark:bg-slate-900 p-5 text-sm text-slate-600 dark:text-slate-300">Cargando la modalidad de honorarios guardada localmente…</div>
+          ) : !hasValidCalculationInputs ? (
             <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-800 dark:text-amber-200">
               {!hasValidBcvRate
                 ? 'No hay una tasa BCV válida guardada. Introduzca manualmente la tasa vigente y verifique su fuente y fecha antes de calcular. No se utilizará una tasa ficticia.'
