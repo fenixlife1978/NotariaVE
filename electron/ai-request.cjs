@@ -1,3 +1,9 @@
+const { assertRoleAllowed } = require('./access-policy.cjs');
+
+function assertAiDraftRole(role) {
+  assertRoleAllowed(role, ['admin', 'abogado']);
+}
+
 function validateAiClauseRequest(input = {}) {
   if (input.consent !== true) {
     throw new Error('Confirma expresamente el envío de este texto al proveedor externo.');
@@ -18,4 +24,4 @@ function validateAiClauseRequest(input = {}) {
   };
 }
 
-module.exports = { validateAiClauseRequest };
+module.exports = { validateAiClauseRequest, assertAiDraftRole };
