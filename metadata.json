@@ -2,8 +2,5 @@
   "name": "Notaría VE",
   "description": "Aplicación de escritorio para gestión notarial y registral con SQLite local.",
   "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ],
   "version": "1.0.4"
 }
