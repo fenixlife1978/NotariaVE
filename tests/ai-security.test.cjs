@@ -26,9 +26,10 @@ test('stores Gemini keys encrypted, reports no-key state, decrypts only locally,
   const rows = new Map();
   const statements = {
     prepare(sql) {
-      if (sql.startsWith('INSERT INTO app_settings')) return { run: (_key, value, timestamp) => rows.set('ai_gemini_key_encrypted', { setting_value: value, updated_at: timestamp }) };
-      if (sql.startsWith('SELECT setting_value')) return { get: () => rows.get('ai_gemini_key_encrypted') || null };
-      if (sql.startsWith('DELETE FROM app_settings')) return { run: () => rows.delete('ai_gemini_key_encrypted') };
+      const normalizedSql = sql.trimStart();
+      if (normalizedSql.startsWith('INSERT INTO app_settings')) return { run: (_key, value, timestamp) => rows.set('ai_gemini_key_encrypted', { setting_value: value, updated_at: timestamp }) };
+      if (normalizedSql.startsWith('SELECT setting_value')) return { get: () => rows.get('ai_gemini_key_encrypted') || null };
+      if (normalizedSql.startsWith('DELETE FROM app_settings')) return { run: () => rows.delete('ai_gemini_key_encrypted') };
       throw new Error('Unexpected SQL');
     },
   };
