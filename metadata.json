@@ -1,6 +1,9 @@
 {
-  "name": "MVP Notaría VE",
-  "description": "Sistema integral para abogados: creación dinámica de documentos jurídicos venezolanos, cálculo de aranceles y timbres fiscales por estado, y adaptación a criterios SAREN.",
+  "name": "Notaría VE",
+  "description": "Aplicación de escritorio para gestión notarial y registral con SQLite local.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ],
+  "version": "1.0.4"
 }
