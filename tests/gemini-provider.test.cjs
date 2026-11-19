@@ -101,3 +101,34 @@ test('maps provider HTTP errors without exposing response bodies or submitted co
     );
   }
 });
+
+
+test('maps request timeouts and malformed JSON responses to safe messages', async () => {
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'never-log-this-key',
+      prompt: 'private legal text',
+      fetchImpl: async () => { throw new DOMException('never-log-this-key private legal text', 'TimeoutError'); },
+    }),
+    (error) => {
+      assert.match(error.message, /agotó el tiempo de espera/);
+      assert.equal(error.message.includes('never-log-this-key'), false);
+      assert.equal(error.message.includes('private legal text'), false);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'never-log-this-key',
+      prompt: 'private legal text',
+      fetchImpl: async () => ({ ok: true, json: async () => { throw new Error('never-log-this-key private legal text'); } }),
+    }),
+    (error) => {
+      assert.match(error.message, /respuesta ilegible/);
+      assert.equal(error.message.includes('never-log-this-key'), false);
+      assert.equal(error.message.includes('private legal text'), false);
+      return true;
+    },
+  );
+});
