@@ -17,7 +17,7 @@ function main() {
       const quote = (value) => String(value).replace(/'/g, "''");
       execFileSync('powershell.exe', [
         '-NoProfile', '-Command',
-        `Expand-Archive -LiteralPath '${quote(archive)}' -DestinationPath '${quote(temp)}' -Force`,
+        `Expand-Archive -LiteralPath '${quote(archive)}' -DestinationPath '${quote(temp)}'`,
       ], { stdio: 'inherit' });
     } else {
       execFileSync('unzip', ['-q', archive, '-d', temp], { stdio: 'inherit' });
