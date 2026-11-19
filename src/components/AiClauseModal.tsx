@@ -61,6 +61,8 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({ isOpen, onClose, d
     if (!prompt.trim()) { setError('Escribe qué cláusula necesitas.'); return; }
     if (!consent) { setError('Marca la autorización para enviar este texto a Gemini antes de generar.'); return; }
     setIsLoading(true); setError(null); setGeneratedClause('');
+    // Consent is a one-request authorization, never a reusable session preference.
+    setConsent(false);
     try {
       const result = await window.notariaDesktop.generateAiClause({ prompt, currentClause, context: `Documento: ${documentType}; estado/jurisdicción: ${notaryState}`, consent });
       setGeneratedClause(result.text);
