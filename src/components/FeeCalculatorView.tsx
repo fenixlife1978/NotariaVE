@@ -24,7 +24,7 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
   const [grantorCount, setGrantorCount] = useState<number>(2);
   const [expressExpedited, setExpressExpedited] = useState<boolean>(false);
   const [vehicleLawyerFeeMode, setVehicleLawyerFeeMode] = useState<'percentage' | 'minimum' | 'custom'>('percentage');
-  const [customVehicleLawyerFeeUsd, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
+  const [customVehicleLawyerFeeUsd: Number.isFinite(customVehicleLawyerFeeUsd) && customVehicleLawyerFeeUsd >= 0 ? customVehicleLawyerFeeUsd : 0, setCustomVehicleLawyerFeeUsd] = useState<number>(60);
   const [feeSettingsLoaded, setFeeSettingsLoaded] = useState(false);
   const [bcvRate, setBcvRate] = useState<number>(criteria.bcvRate || 0);
   const [isSavingRate, setIsSavingRate] = useState(false);
@@ -51,10 +51,10 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     municipalityId,
     operationType,
     amountCurrency: currency,
-    amountValue: amountValue || 0,
+    amountValue: Number.isFinite(amountValue) && amountValue >= 0 ? amountValue : 0,
     bcvRate: hasValidBcvRate ? bcvRate : 1,
-    pageCount: pageCount || 1,
-    grantorCount: grantorCount || 1,
+    pageCount: Number.isInteger(pageCount) && pageCount > 0 ? pageCount : 1,
+    grantorCount: Number.isInteger(grantorCount) && grantorCount > 0 ? grantorCount : 1,
     expressExpedited,
     vehicleLawyerFeeMode,
     customVehicleLawyerFeeUsd,
