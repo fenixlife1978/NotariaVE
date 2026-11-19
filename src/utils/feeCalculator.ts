@@ -210,7 +210,7 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
   let lawyerBasis = '';
   if (vehicleLawyerFeeMode === 'minimum') {
     lawyerFeeUsd = 60;
-    lawyerBasis = 'Mínimo seleccionado por el abogado: US$ 60';
+    lawyerBasis = 'Importe fijo de referencia seleccionado por el abogado: US$ 60';
   } else if (vehicleLawyerFeeMode === 'custom') {
     const customFee = Number(customVehicleLawyerFeeUsd);
     if (!Number.isFinite(customFee) || customFee < 0) {
