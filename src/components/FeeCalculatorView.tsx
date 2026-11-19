@@ -125,7 +125,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
             <Calculator className="w-6 h-6 text-amber-500" />
-            Estimador Orientativo de Gastos Notariales, Registrales y Municipales
+            Presupuesto y Aranceles — Gastos Notariales, Registrales y Municipales
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Estimaciones internas no oficiales. Verifique cada tarifa, porcentaje y vigencia directamente con SAREN, la autoridad estadal y la alcaldía competente.
