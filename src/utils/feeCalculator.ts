@@ -39,6 +39,19 @@ export function calculateVenezuelanFees(params: FeeInputParams): FeeCalculationR
     customVehicleLawyerFeeUsd = 60,
   } = params;
 
+  if (!Number.isFinite(bcvRate) || bcvRate <= 0) {
+    throw new Error('La tasa BCV debe ser un número válido mayor que cero.');
+  }
+  if (!Number.isFinite(amountValue) || amountValue < 0) {
+    throw new Error('La cuantía declarada debe ser un número válido igual o mayor que cero.');
+  }
+  if (!Number.isInteger(pageCount) || pageCount < 1 || !Number.isInteger(grantorCount) || grantorCount < 1) {
+    throw new Error('Las páginas y los otorgantes deben ser números enteros mayores que cero.');
+  }
+  if (!['percentage', 'minimum', 'custom'].includes(vehicleLawyerFeeMode)) {
+    throw new Error('Seleccione una modalidad de honorarios válida.');
+  }
+
   const stateRule =
     VENEZUELAN_STATES_TAX_DATA.find((s) => s.id === stateId) || VENEZUELAN_STATES_TAX_DATA[0];
 
