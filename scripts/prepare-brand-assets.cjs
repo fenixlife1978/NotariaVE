@@ -4,7 +4,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
-const archive = path.join(root, 'public', 'assets', 'aistudio', 'EFAS_Identidad_576cdc6b.zip');
+const archive = path.join(root, 'assets', 'original-brand', 'EFAS_Identidad_576cdc6b.zip');
 
 function main() {
   if (!fs.existsSync(archive)) {
