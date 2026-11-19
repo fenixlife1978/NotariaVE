@@ -43,7 +43,7 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({ isOpen, onClose, d
   if (!isOpen) return null;
 
   const handleSaveKey = async () => {
-    setError(null); setSavingKey(true);
+    setError(null); setConsent(false); setSavingKey(true);
     try {
       await window.notariaDesktop.saveAiKey(apiKey);
       setConfigured(true); setShowKeySetup(false); setApiKey('');
@@ -52,13 +52,13 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({ isOpen, onClose, d
   };
 
   const handleRemoveKey = async () => {
-    setError(null);
+    setError(null); setConsent(false);
     try { await window.notariaDesktop.clearAiKey(); setConfigured(false); setShowKeySetup(true); setGeneratedClause(''); }
     catch (err) { setError(err instanceof Error ? err.message : 'No se pudo retirar la API key.'); }
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) { setError('Escribe qué cláusula necesitas.'); return; }
+    if (!prompt.trim()) { setConsent(false); setError('Escribe qué cláusula necesitas.'); return; }
     if (!consent) { setError('Marca la autorización para enviar este texto a Gemini antes de generar.'); return; }
     setIsLoading(true); setError(null); setGeneratedClause('');
     // Consent is a one-request authorization, never a reusable session preference.
@@ -98,14 +98,14 @@ export const AiClauseModal: React.FC<AiClauseModalProps> = ({ isOpen, onClose, d
             <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 p-3 text-xs"><span className="text-emerald-700 dark:text-emerald-300">Gemini configurado · clave almacenada cifrada localmente</span><div className="flex gap-2"><button type="button" onClick={() => setShowKeySetup(true)} className="underline">Cambiar</button><button type="button" onClick={handleRemoveKey} className="underline text-rose-600">Eliminar</button></div></div>
           )}
 
-          <div><label className="block text-xs font-semibold mb-1.5 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Sugerencias frecuentes:</label><div className="flex flex-wrap gap-1.5">{PRESET_PROMPTS.map((preset, idx) => <button key={idx} type="button" onClick={() => setPrompt(preset)} className="text-left text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200">{preset}</button>)}</div></div>
-          <div><label className="block text-xs font-semibold mb-1">¿Qué cláusula o estipulación deseas redactar o adaptar?</label><textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={3} placeholder="Describe la cláusula, condiciones, partes, obligaciones y supuestos que deseas cubrir…" className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border rounded-lg text-slate-900 dark:text-slate-100" /></div>
-          <div><label className="block text-xs font-semibold mb-1">Texto base o cláusula previa (opcional):</label><textarea value={currentClause} onChange={e => setCurrentClause(e.target.value)} rows={3} placeholder="Pega aquí el texto que deseas reformular…" className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border rounded-lg text-slate-900 dark:text-slate-100" /></div>
+          <div><label className="block text-xs font-semibold mb-1.5 flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Sugerencias frecuentes:</label><div className="flex flex-wrap gap-1.5">{PRESET_PROMPTS.map((preset, idx) => <button key={idx} type="button" onClick={() => { setPrompt(preset); setConsent(false); }} className="text-left text-xs px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200">{preset}</button>)}</div></div>
+          <div><label className="block text-xs font-semibold mb-1">¿Qué cláusula o estipulación deseas redactar o adaptar?</label><textarea value={prompt} onChange={e => { setPrompt(e.target.value); setConsent(false); }} rows={3} placeholder="Describe la cláusula, condiciones, partes, obligaciones y supuestos que deseas cubrir…" className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border rounded-lg text-slate-900 dark:text-slate-100" /></div>
+          <div><label className="block text-xs font-semibold mb-1">Texto base o cláusula previa (opcional):</label><textarea value={currentClause} onChange={e => { setCurrentClause(e.target.value); setConsent(false); }} rows={3} placeholder="Pega aquí el texto que deseas reformular…" className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border rounded-lg text-slate-900 dark:text-slate-100" /></div>
           <div className="rounded-md border border-rose-300 bg-rose-50 dark:bg-rose-950/20 p-3 text-xs text-rose-800 dark:text-rose-200"><strong>Privacidad de la cuota gratuita:</strong> Google indica que el contenido del nivel gratuito puede utilizarse para mejorar sus productos. No envíes datos identificativos, documentos íntegros, claves ni información confidencial; usa texto anonimizado y revisa las condiciones de Google antes de activarlo.</div>
           <label className="flex items-start gap-2 rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-3 text-xs"><input type="checkbox" checked={consent} disabled={isLoading} onChange={e => setConsent(e.target.checked)} className="mt-0.5" /><span><strong>Autorizo el envío de los textos que he escrito arriba a Google Gemini para esta solicitud.</strong> La autorización se consume al enviar y debe marcarse nuevamente para cada generación. La respuesta es un borrador y debe revisarse jurídicamente.</span></label>
           <div className="flex justify-end"><button type="button" onClick={handleGenerate} disabled={!configured || isLoading || !consent || !prompt.trim()} className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold rounded-lg text-xs disabled:opacity-50">{isLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Generando propuesta…</> : <><Sparkles className="w-4 h-4" />Redactar con Gemini</>}</button></div>
           {error && <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 text-red-700 dark:text-red-300 rounded-lg text-xs flex items-start gap-2"><AlertCircle className="w-4 h-4 shrink-0" /><span>{error}</span></div>}
-          {generatedClause && <section className="space-y-2"><div className="flex items-center gap-1 text-xs font-bold uppercase"><ShieldAlert className="w-4 h-4 text-amber-500" />Borrador generado — editable; verificar normas y citas</div><textarea value={generatedClause} onChange={e => setGeneratedClause(e.target.value)} rows={8} className="w-full p-4 bg-amber-500/5 border border-amber-500/20 rounded-lg font-serif text-sm leading-relaxed text-slate-800 dark:text-slate-200" aria-label="Editar cláusula generada" /><div className="flex justify-end"><button type="button" onClick={() => setCurrentClause(generatedClause)} className="text-xs font-semibold text-blue-600 hover:underline">Usar este borrador como base para reformular</button></div></section>}
+          {generatedClause && <section className="space-y-2"><div className="flex items-center gap-1 text-xs font-bold uppercase"><ShieldAlert className="w-4 h-4 text-amber-500" />Borrador generado — editable; verificar normas y citas</div><textarea value={generatedClause} onChange={e => setGeneratedClause(e.target.value)} rows={8} className="w-full p-4 bg-amber-500/5 border border-amber-500/20 rounded-lg font-serif text-sm leading-relaxed text-slate-800 dark:text-slate-200" aria-label="Editar cláusula generada" /><div className="flex justify-end"><button type="button" onClick={() => { setCurrentClause(generatedClause); setConsent(false); }} className="text-xs font-semibold text-blue-600 hover:underline">Usar este borrador como base para reformular</button></div></section>}
         </div>
         <div className="flex items-center justify-between px-6 py-3 border-t bg-slate-50 dark:bg-slate-950"><button type="button" onClick={onClose} className="px-3.5 py-1.5 text-xs font-medium">Cancelar</button><button type="button" onClick={handleInsert} disabled={!generatedClause} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg text-xs disabled:opacity-50"><Check className="w-4 h-4" />Insertar en el Borrador</button></div>
       </div>
