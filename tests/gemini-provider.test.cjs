@@ -47,7 +47,7 @@ test('limits provider error details', async () => {
       fetchImpl: async () => ({ ok: false, status: 400, text: async () => detail }),
     }),
     (error) => {
-      assert.match(error.message, /^Gemini respondió 400:/);
+      assert.match(error.message, /^Gemini rechazó la solicitud \(HTTP 400\)\./);
       assert.ok(error.message.length < 350);
       return true;
     },
