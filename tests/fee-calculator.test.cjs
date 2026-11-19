@@ -53,7 +53,7 @@ test('uses exactly the selected US$60 minimum without percentage override', () =
   const result = calculateVenezuelanFees({ ...base, amountValue: 100000, vehicleLawyerFeeMode: 'minimum' });
   assert.equal(lawyerFee(result).amountUsd, 60);
   assert.equal(result.subtotalHonorariosUsd, 60);
-  assert.equal(lawyerFee(result).basis, 'Mínimo seleccionado por el abogado: US$ 60');
+  assert.equal(lawyerFee(result).basis, 'Importe fijo de referencia seleccionado por el abogado: US$ 60');
 });
 
 test('uses a custom fee exactly, including a deliberate zero amount', () => {
