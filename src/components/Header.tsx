@@ -15,7 +15,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onNewDo
   const lawyer = currentUser?.role === 'abogado';
   const nav: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
     { id: 'editor', label: 'Redactor', icon: <FileText className="w-4 h-4" /> },
-    { id: 'calculator', label: 'Aranceles', icon: <Calculator className="w-4 h-4" /> },
+    { id: 'calculator', label: 'Presupuesto / Aranceles', icon: <Calculator className="w-4 h-4" /> },
     { id: 'clients', label: 'Clientes', icon: <Users className="w-4 h-4" /> },
     { id: 'attachments', label: 'Adjuntos', icon: <FileText className="w-4 h-4" /> },
     ...(lawyer ? [{ id: 'profile' as Tab, label: 'Mi perfil', icon: <ShieldCheck className="w-4 h-4" /> }] : []),

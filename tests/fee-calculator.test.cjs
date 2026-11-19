@@ -53,7 +53,7 @@ test('uses exactly the selected US$60 minimum without percentage override', () =
   const result = calculateVenezuelanFees({ ...base, amountValue: 100000, vehicleLawyerFeeMode: 'minimum' });
   assert.equal(lawyerFee(result).amountUsd, 60);
   assert.equal(result.subtotalHonorariosUsd, 60);
-  assert.equal(lawyerFee(result).basis, 'Mínimo seleccionado por el abogado: US$ 60');
+  assert.equal(lawyerFee(result).basis, 'Importe fijo de referencia seleccionado por el abogado: US$ 60');
 });
 
 test('uses a custom fee exactly, including a deliberate zero amount', () => {
@@ -88,5 +88,21 @@ test('rejects negative and non-finite custom lawyer fees', () => {
       }),
       /monto libre de honorarios/i,
     );
+  }
+});
+
+
+test('rejects missing or invalid BCV rates and invalid declared amounts before calculating', () => {
+  for (const bcvRate of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => calculateVenezuelanFees({ ...base, bcvRate }), /tasa BCV/i);
+  }
+  for (const amountValue of [-0.01, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => calculateVenezuelanFees({ ...base, amountValue }), /cuantía declarada/i);
+  }
+});
+
+test('rejects invalid page and grantor counts rather than silently substituting defaults', () => {
+  for (const patch of [{ pageCount: 0 }, { pageCount: 1.5 }, { grantorCount: 0 }, { grantorCount: 2.5 }]) {
+    assert.throws(() => calculateVenezuelanFees({ ...base, ...patch }), /páginas y los otorgantes/i);
   }
 });

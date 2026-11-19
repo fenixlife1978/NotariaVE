@@ -47,7 +47,7 @@ test('limits provider error details', async () => {
       fetchImpl: async () => ({ ok: false, status: 400, text: async () => detail }),
     }),
     (error) => {
-      assert.match(error.message, /^Gemini respondió 400:/);
+      assert.match(error.message, /^Gemini rechazó la solicitud \(HTTP 400\)\./);
       assert.ok(error.message.length < 350);
       return true;
     },
@@ -61,5 +61,74 @@ test('rejects successful responses that contain no generated text', async () => 
       fetchImpl: async () => ({ ok: true, json: async () => ({ candidates: [] }) }),
     }),
     /Gemini no devolvió texto/,
+  );
+});
+
+
+test('maps network failures to a safe offline message without exposing request data', async () => {
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'never-log-this-key',
+      prompt: 'private legal text',
+      fetchImpl: async () => { throw new TypeError('fetch failed: never-log-this-key private legal text'); },
+    }),
+    (error) => {
+      assert.match(error.message, /No fue posible conectar con Gemini/);
+      assert.equal(error.message.includes('never-log-this-key'), false);
+      assert.equal(error.message.includes('private legal text'), false);
+      return true;
+    },
+  );
+});
+
+test('maps provider HTTP errors without exposing response bodies or submitted content', async () => {
+  for (const [status, expected] of [
+    [400, /HTTP 400/], [401, /API key/], [403, /API key/],
+    [404, /modelo de Gemini/], [429, /Cuota gratuita/], [503, /interrupción temporal/],
+  ]) {
+    await assert.rejects(
+      () => generateGeminiClause({
+        apiKey: 'never-log-this-key',
+        prompt: 'private legal text',
+        fetchImpl: async () => ({ ok: false, status, text: async () => 'never-log-this-key private legal text' }),
+      }),
+      (error) => {
+        assert.match(error.message, expected);
+        assert.equal(error.message.includes('never-log-this-key'), false);
+        assert.equal(error.message.includes('private legal text'), false);
+        return true;
+      },
+    );
+  }
+});
+
+
+test('maps request timeouts and malformed JSON responses to safe messages', async () => {
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'never-log-this-key',
+      prompt: 'private legal text',
+      fetchImpl: async () => { throw new DOMException('never-log-this-key private legal text', 'TimeoutError'); },
+    }),
+    (error) => {
+      assert.match(error.message, /agotó el tiempo de espera/);
+      assert.equal(error.message.includes('never-log-this-key'), false);
+      assert.equal(error.message.includes('private legal text'), false);
+      return true;
+    },
+  );
+
+  await assert.rejects(
+    () => generateGeminiClause({
+      apiKey: 'never-log-this-key',
+      prompt: 'private legal text',
+      fetchImpl: async () => ({ ok: true, json: async () => { throw new Error('never-log-this-key private legal text'); } }),
+    }),
+    (error) => {
+      assert.match(error.message, /respuesta ilegible/);
+      assert.equal(error.message.includes('never-log-this-key'), false);
+      assert.equal(error.message.includes('private legal text'), false);
+      return true;
+    },
   );
 });

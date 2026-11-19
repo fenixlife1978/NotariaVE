@@ -4,7 +4,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
-const archive = path.join(root, 'public', 'assets', 'aistudio', 'EFAS_Identidad_576cdc6b.zip');
+const archive = path.join(root, 'assets', 'original-brand', 'EFAS_Identidad_576cdc6b.zip');
 
 function main() {
   if (!fs.existsSync(archive)) {
@@ -17,7 +17,7 @@ function main() {
       const quote = (value) => String(value).replace(/'/g, "''");
       execFileSync('powershell.exe', [
         '-NoProfile', '-Command',
-        `Expand-Archive -LiteralPath '${quote(archive)}' -DestinationPath '${quote(temp)}' -Force`,
+        `Expand-Archive -LiteralPath '${quote(archive)}' -DestinationPath '${quote(temp)}'`,
       ], { stdio: 'inherit' });
     } else {
       execFileSync('unzip', ['-q', archive, '-d', temp], { stdio: 'inherit' });
