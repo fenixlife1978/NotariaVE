@@ -5,6 +5,7 @@ function assertAiDraftRole(role) {
 }
 
 function validateAiClauseRequest(input = {}) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) input = {};
   if (input.consent !== true) {
     throw new Error('Confirma expresamente el envío de este texto al proveedor externo.');
   }
