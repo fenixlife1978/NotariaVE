@@ -42,6 +42,9 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     try { await onRefreshBcvRate(); } catch (error) { console.error(error); } finally { setIsRefreshingRate(false); }
   };
   const hasValidBcvRate = Number.isFinite(bcvRate) && bcvRate > 0;
+  const hasValidCalculationInputs = hasValidBcvRate && Number.isFinite(amountValue) && amountValue >= 0 &&
+    Number.isInteger(pageCount) && pageCount > 0 && Number.isInteger(grantorCount) && grantorCount > 0 &&
+    (vehicleLawyerFeeMode !== 'custom' || (Number.isFinite(customVehicleLawyerFeeUsd) && customVehicleLawyerFeeUsd >= 0));
 
   const calculation = calculateVenezuelanFees({
     stateId,
@@ -65,7 +68,7 @@ export const FeeCalculatorView: React.FC<FeeCalculatorViewProps> = ({ criteria, 
     VENEZUELAN_MUNICIPALITIES_DATA[0];
 
   const handleExportStatementDocx = async () => {
-    if (!hasValidBcvRate) return;
+    if (!hasValidCalculationInputs) return;
     const textStatement = `HOJA DE LIQUIDACIÓN Y ESTIMACIÓN DE GASTOS NOTARIALES, REGISTRALES Y MUNICIPALES
 ESTADO: ${calculation.state.toUpperCase()}
 MUNICIPIO: ${calculation.municipalityName.toUpperCase()}
@@ -111,7 +114,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
   };
 
   const handlePrint = () => {
-    if (!hasValidBcvRate) return;
+    if (!hasValidCalculationInputs) return;
     window.print();
   };
 
@@ -132,7 +135,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportStatementDocx}
-            disabled={!hasValidBcvRate}
+            disabled={!hasValidCalculationInputs}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors"
           >
             <FileDown className="w-4 h-4" />
@@ -140,7 +143,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
           </button>
           <button
             onClick={handlePrint}
-            disabled={!hasValidBcvRate}
+            disabled={!hasValidCalculationInputs}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-semibold transition-colors"
           >
             <Printer className="w-4 h-4" />
@@ -265,7 +268,7 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
                   className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 font-medium"
                 >
                   <option value="percentage">3 % de la cuantía declarada</option>
-                  <option value="minimum">Mínimo fijo de referencia (US$60)</option>
+                  <option value="minimum">Importe fijo de referencia US$60 (seleccionado)</option>
                   <option value="custom">Monto libre</option>
                 </select>
               </div>
@@ -444,9 +447,11 @@ Estimación orientativa no oficial. Los porcentajes, mínimos y tasas incluidos 
 
         {/* Right Breakdown (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          {!hasValidBcvRate ? (
+          {!hasValidCalculationInputs ? (
             <div role="alert" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-800 dark:text-amber-200">
-              No hay una tasa BCV válida guardada. Introduzca manualmente la tasa vigente y verifique su fuente y fecha antes de calcular. No se utilizará una tasa ficticia.
+              {!hasValidBcvRate
+                ? 'No hay una tasa BCV válida guardada. Introduzca manualmente la tasa vigente y verifique su fuente y fecha antes de calcular. No se utilizará una tasa ficticia.'
+                : 'Revise la cuantía, el número de páginas, los otorgantes y el honorario libre. Todos deben ser valores válidos y no negativos; páginas y otorgantes deben ser enteros mayores que cero.'}
             </div>          ) : <>
           {/* Main Total Highlight Card */}
           <div className="bg-slate-900 text-white rounded-xl p-6 border border-slate-800 shadow-sm relative overflow-hidden">
