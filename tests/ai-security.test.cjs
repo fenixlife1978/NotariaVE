@@ -16,7 +16,7 @@ test('allows only admin and lawyer roles to use AI drafting', () => {
 test('requires fresh consent and redacts all user text from audit metadata', () => {
   assert.throws(() => validateAiClauseRequest({ prompt: 'Redactar', consent: false }), /Confirma expresamente/);
   const request = validateAiClauseRequest({ prompt: 'Texto confidencial', currentClause: 'Cláusula reservada', consent: true });
-  assert.deepEqual(request.auditDetails, { provider: 'gemini', promptLength: 18, priorTextLength: 19 });
+  assert.deepEqual(request.auditDetails, { provider: 'gemini', promptLength: 18, priorTextLength: 18 });
   assert.equal(JSON.stringify(request.auditDetails).includes('Texto confidencial'), false);
   assert.equal(JSON.stringify(request.auditDetails).includes('Cláusula reservada'), false);
   assert.throws(() => validateAiClauseRequest({ prompt: 'Otra solicitud', consent: false }), /Confirma expresamente/);
