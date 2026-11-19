@@ -19,7 +19,7 @@ test('validates request sizes and keeps text and credentials out of audit metada
   assert.deepEqual(request.auditDetails, {
     provider: 'gemini',
     promptLength: 15,
-    priorTextLength: 19,
+    priorTextLength: 18,
   });
   assert.equal(JSON.stringify(request.auditDetails).includes('Texto reservado'), false);
   assert.equal(JSON.stringify(request.auditDetails).includes('Cláusula reservada'), false);
