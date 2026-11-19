@@ -12,6 +12,7 @@ const { assertRoleAllowed, assertAdminOnly, assertValidRole, assertAdminRemainsA
 const { recordBackupRestoreCompleted, recordAttachmentExported } = require('./audit-events.cjs');
 const { getBcvRateUrl, getCaracasDate, parseBcvRatePayload, validateManualBcvRate } = require('./bcv-rate.cjs');
 const { generateGeminiClause } = require('./gemini-provider.cjs');
+const { validateAiClauseRequest } = require('./ai-request.cjs');
 
 let mainWindow;
 let db;
@@ -765,10 +766,8 @@ function registerIpc() {
 
   handleIpc('ai:generate-clause', async (_event, input = {}) => {
     const actor = requireRole('admin', 'abogado');
-    if (input.consent !== true) throw new Error('Confirma expresamente el envío de este texto al proveedor externo.');
-    const prompt = String(input.prompt || '').trim();
-    const prior = String(input.currentClause || '').trim();
-    if (!prompt || prompt.length > 12000 || prior.length > 20000) throw new Error('El texto solicitado excede el límite permitido.');
+    const request = validateAiClauseRequest(input);
+    const { prompt, prior } = request;
     const row = db.prepare('SELECT setting_value FROM app_settings WHERE setting_key = ?').get('ai_gemini_key_encrypted');
     if (!row) throw new Error('Configura primero tu API key gratuita de Gemini.');
     if (!safeStorage.isEncryptionAvailable()) throw new Error('El cifrado local no está disponible.');
@@ -776,7 +775,7 @@ function registerIpc() {
     const apiKey = safeStorage.decryptString(Buffer.from(encrypted, 'base64'));
     const context = String(input.context || '').slice(0, 2000);
     const text = await generateGeminiClause({ apiKey, prompt, currentClause: prior, context });
-    writeAudit(actor.id, 'ai_clause_generated', 'document_draft', 'unsaved', { provider: 'gemini', promptLength: prompt.length, priorTextLength: prior.length });
+    writeAudit(actor.id, 'ai_clause_generated', 'document_draft', 'unsaved', request.auditDetails);
     return { text };
   });
 
